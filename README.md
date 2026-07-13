@@ -1,11 +1,80 @@
-# BallsDex-DiscordBot-Moderation-Package
+# Moderation-BD
 
-First to Use this Moderation Package in your Dex, you must make sure you have a fork of BallsDex,
+A moderation extra package for [Ballsdex v3](https://github.com/Ballsdex-Team/BallsDex-DiscordBot).
 
-Then go to the bot folder of your fork. Then make a new folder in ballsdex/packages, called moderation. Then copy the ``__init__.py`` and ``cog.py`` to the folder.
+Provides slash commands for common moderation actions: kick, ban, unban, mute, unmute, warn, purge, slowmode, lock/unlock channels, and nickname management. Warnings are persisted in the database and visible in the admin panel. And blah blah blah.
 
-Then go to the config.yml and scroll to the packages part and add
-``- ballsdex.packages.moderation`` with proper indentations. Now do CTRL+S to save the changes and run docker compose up in your terminal!.
+## Disclaimer
 
+For this extra package to work, you must enable the following permissions for the bot:
 
-If you have any errors, dm my discord “molten_is_glitched”
+- `Kick Members`
+- `Ban Members`
+- `Manage Roles`
+- `Manage Channels`
+- `Change Nickname`
+
+If you leave these permissions disabled, then bye bye, get out of this repository. `>:(`
+
+## Commands
+
+| Command | Description |
+|---------|-------------|
+| `/kick` | Kick a user from the server |
+| `/ban` | Ban a user from the server |
+| `/unban` | Unban a user by tag (Explosives#6969) |
+| `/mute` | Mute a user with a "Muted" role |
+| `/unmute` | Unmute a user |
+| `/warn` | Warn a user (persisted in database) |
+| `/warnings` | List warnings for a user |
+| `/clearwarnings` | Clear all warnings for a user |
+| `/purge` | Purge messages in the channel |
+| `/slowmode` | Set slowmode in the channel |
+| `/lock` | Lock the channel |
+| `/unlock` | Unlock the channel |
+| `/nickname` | Change a user's nickname |
+
+## Installation
+
+### Docker
+
+Add the following to your `config/extra.toml`:
+
+```toml
+[[ballsdex.packages]]
+location = "git+https://github.com/aramhosting/Moderation-BD.git==1.0.0"
+path = "moderation_app"
+enabled = true
+```
+
+Then rebuild and restart:
+
+```bash
+docker compose up --build
+```
+
+### Without Docker
+
+1. Clone or download this repository into your `extra/` folder
+2. Add the following to your `config/extra.toml`:
+
+```toml
+[[ballsdex.packages]]
+location = ""
+path = "moderation_app"
+enabled = true
+editable = true
+```
+
+3. Install the package: `uv pip install -e extra/Moderation-BD`
+4. Run migrations: `python3 -m django makemigrations moderation_app && python3 -m django migrate`
+5. Start the bot
+
+## Requirements
+
+- Ballsdex >= 3.0.0
+- Python >= 3.14
+
+## License
+
+MIT
