@@ -4,6 +4,8 @@ A moderation extra package for [Ballsdex v3](https://github.com/Ballsdex-Team/Ba
 
 Provides slash commands for common moderation actions: kick, ban, unban, mute, unmute, warn, purge, slowmode, lock/unlock channels, and nickname management. Warnings are persisted in the database and visible in the admin panel. And blah blah blah.
 
+The base for this extra package comes from [molteencreates/BallsDex-DiscordBot-Moderation-Package](https://github.com/molteencreates/BallsDex-DiscordBot-Moderation-Package), with some modifications to fit the Ballsdex v3 ecosystem. Therefore, the proper credits goes to [**molteencreates**](https://github.com/molteencreates) for the original package.
+
 ## Disclaimer
 
 For this extra package to work, you must enable the following permissions for the bot:
