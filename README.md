@@ -20,22 +20,24 @@ If you leave these permissions disabled, then bye bye, get out of this repositor
 
 ## Commands
 
+All commands are grouped under `/moderation`:
+
 | Command | Description |
 |---------|-------------|
-| `/kick` | Kick a user from the server |
-| `/ban` | Ban a user from the server |
-| `/unban` | Unban a user by tag (Explosives#6969) |
-| `/mute` | Mute a user with a "Muted" role |
-| `/unmute` | Unmute a user |
-| `/setmutedrole` | Set the role used for muting members |
-| `/warn` | Warn a user (persisted in database) |
-| `/warnings` | List warnings for a user |
-| `/clearwarnings` | Clear all warnings for a user |
-| `/purge` | Purge messages in the channel |
-| `/slowmode` | Set slowmode in the channel |
-| `/lock` | Lock the channel |
-| `/unlock` | Unlock the channel |
-| `/nickname` | Change a user's nickname |
+| `/moderation kick` | Kick a user from the server |
+| `/moderation ban` | Ban a user from the server |
+| `/moderation unban` | Unban a user by tag (Explosives#6969) |
+| `/moderation mute` | Mute a user with a "Muted" role |
+| `/moderation unmute` | Unmute a user |
+| `/moderation setmutedrole` | Set the role used for muting members |
+| `/moderation warn` | Warn a user (persisted in database) |
+| `/moderation warnings` | List warnings for a user |
+| `/moderation clearwarnings` | Clear all warnings for a user |
+| `/moderation purge` | Purge messages in the channel |
+| `/moderation slowmode` | Set slowmode in the channel |
+| `/moderation lock` | Lock the channel |
+| `/moderation unlock` | Unlock the channel |
+| `/moderation nickname` | Change a user's nickname |
 
 ## Installation
 
@@ -45,7 +47,7 @@ Add the following to your `config/extra.toml`:
 
 ```toml
 [[ballsdex.packages]]
-location = "git+https://github.com/aramhosting/Moderation-BD.git@1.1.1"
+location = "git+https://github.com/aramhosting/Moderation-BD.git@1.1.5"
 path = "moderation_app"
 enabled = true
 ```
