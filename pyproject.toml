@@ -12,13 +12,45 @@ dependencies = [
     "pyright>=1.1.411",
     "ruff>=0.15.21",
     "ballsdex>=3.1.0",
+    "toml-sort>=0.23.1",
+    "mdformat>=0.7.17",
+    "pymarkdownlnt>=0.9.20"
 ]
-
-[tool.uv.sources]
-ballsdex = { git = "https://github.com/Ballsdex-Team/BallsDex-DiscordBot.git", branch = "v3" }
 
 [tool.uv]
 override-dependencies = ["django>=6.0.1,<6.2", "pillow>=12.0.1,<13.0"]
+
+[tool.uv.sources]
+ballsdex = {git = "https://github.com/Ballsdex-Team/BallsDex-DiscordBot.git", branch = "v3"}
+
+[tool.mdformat]
+number = true
+wrap = 120
+
+[tool.pymarkdown]
+plugins.md013.enabled = false
+plugins.md041.enabled = false
+
+[tool.pyright]
+typeCheckingMode = "standard"
+include = ["extra"]
+exclude = [
+    "**/node_modules",
+    "**/__pycache__",
+    "**/.git",
+    "**/.venv",
+    "**/migrations"
+]
+venvPath = "."
+venv = ".venv"
+pythonVersion = "3.14"
+pythonPlatform = "All"
+reportMissingImports = true
+reportMissingTypeStubs = false
+reportPrivateImportUsage = false
+reportUnnecessaryTypeIgnoreComment = true
+reportIncompatibleMethodOverride = "warning"
+reportIncompatibleVariableOverride = "warning"
 
 [tool.ruff]
 line-length = 120
@@ -35,23 +67,13 @@ split-on-trailing-comma = false
 [tool.ruff.lint.per-file-ignores]
 "extra/*/migrations/*" = ["E501"]
 
-[tool.pyright]
-typeCheckingMode = "standard"
-include = ["extra"]
-exclude = [
-    "**/node_modules",
-    "**/__pycache__",
-    "**/.git",
-    "**/.venv",
-    "**/migrations",
+[tool.tomlsort]
+in_place = true
+spaces_indent_inline_array = 4
+trailing_comma_inline_array = false
+sort_first = [
+    "project",
+    "build-system",
+    "tool.uv.sources",
+    "tool.uv"
 ]
-venvPath = "."
-venv = ".venv"
-pythonVersion = "3.14"
-pythonPlatform = "All"
-reportMissingImports = true
-reportMissingTypeStubs = false
-reportPrivateImportUsage = false
-reportUnnecessaryTypeIgnoreComment = true
-reportIncompatibleMethodOverride = "warning"
-reportIncompatibleVariableOverride = "warning"
