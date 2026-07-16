@@ -52,4 +52,4 @@ class AdventClaim(models.Model):
         unique_together = ("player", "day")
 
     def __str__(self):
-        return f"{self.player_id} claimed day {self.day}"
+        return f"{self.player.id} claimed day {self.day}"

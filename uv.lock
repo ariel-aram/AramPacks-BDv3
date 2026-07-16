@@ -94,6 +94,29 @@ wheels = [
 ]
 
 [[package]]
+name = "arampacks-bdv3"
+version = "1.0.0"
+source = { virtual = "." }
+dependencies = [
+    { name = "ballsdex" },
+    { name = "discord-py" },
+    { name = "django" },
+    { name = "django-types" },
+    { name = "pyright" },
+    { name = "ruff" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "ballsdex", git = "https://github.com/Ballsdex-Team/BallsDex-DiscordBot.git?branch=v3" },
+    { name = "discord-py", specifier = "<2.7.1" },
+    { name = "django", specifier = "==6.0.0" },
+    { name = "django-types", specifier = ">=0.24.0" },
+    { name = "pyright", specifier = ">=1.1.411" },
+    { name = "ruff", specifier = ">=0.15.21" },
+]
+
+[[package]]
 name = "asgiref"
 version = "3.12.1"
 source = { registry = "https://pypi.org/simple" }
@@ -177,29 +200,6 @@ dependencies = [
     { name = "uvicorn", extra = ["standard"] },
     { name = "uvloop", marker = "sys_platform != 'win32'" },
     { name = "watchfiles" },
-]
-
-[[package]]
-name = "bdv3aramextras"
-version = "1.0.0"
-source = { virtual = "." }
-dependencies = [
-    { name = "ballsdex" },
-    { name = "discord-py" },
-    { name = "django" },
-    { name = "django-types" },
-    { name = "pyright" },
-    { name = "ruff" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "ballsdex", git = "https://github.com/Ballsdex-Team/BallsDex-DiscordBot.git?branch=v3" },
-    { name = "discord-py", specifier = "<2.7.1" },
-    { name = "django", specifier = "==6.0.0" },
-    { name = "django-types", specifier = ">=0.24.0" },
-    { name = "pyright", specifier = ">=1.1.411" },
-    { name = "ruff", specifier = ">=0.15.21" },
 ]
 
 [[package]]

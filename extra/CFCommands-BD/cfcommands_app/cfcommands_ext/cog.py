@@ -1,5 +1,6 @@
 import discord
 from ballsdex.core.utils.transformers import BallTransformer
+from bd_models.models import Ball
 from discord import app_commands
 from discord.ext import commands
 
@@ -9,7 +10,7 @@ class CFCommands(commands.Cog):
         self.bot = bot
 
     @app_commands.command(name="stats", description="Displays a specific countryball's statistics.")
-    async def stats(self, interaction: discord.Interaction, countryball: BallTransformer):
+    async def stats(self, interaction: discord.Interaction, countryball: app_commands.Transform[Ball, BallTransformer]):
         emoji = interaction.client.get_emoji(countryball.emoji_id) or ""
 
         embed = discord.Embed(

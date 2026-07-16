@@ -15,6 +15,78 @@ if TYPE_CHECKING:
 
 log = logging.getLogger("advent_app.advent_ext")
 
+CALENDAR_DAYS = 25
+
+
+class CalendarDayButton(discord.ui.Button["AdventCalendarView"]):
+    def __init__(self, day: int, claimed: bool, configured: bool, is_today: bool):
+        if claimed:
+            label = f"{day}"
+            style = discord.ButtonStyle.green
+            emoji = "\u2705"
+        elif is_today:
+            label = f"{day}"
+            style = discord.ButtonStyle.primary
+            emoji = "\U0001f4c5"
+        elif configured:
+            label = f"{day}"
+            style = discord.ButtonStyle.secondary
+            emoji = "\U0001f381"
+        else:
+            label = f"{day}"
+            style = discord.ButtonStyle.gray
+            emoji = "\u2b1b"
+
+        super().__init__(label=label, emoji=emoji, style=style, row=(day - 1) // 5)
+        self.day = day
+        self.claimed = claimed
+
+    async def callback(self, interaction: discord.Interaction) -> None:
+        view = self.view
+        if view is None:
+            return
+        await view.show_day_detail(interaction, self.day)
+
+
+class AdventCalendarView(discord.ui.View):
+    def __init__(self, player_id: int):
+        super().__init__(timeout=120)
+        self.player_id = player_id
+
+    async def show_day_detail(self, interaction: discord.Interaction, day: int) -> None:
+        config = await AdventDayConfig.objects.filter(day=day).select_related("ball", "special").afirst()
+        claimed = await AdventClaim.objects.filter(player_id=self.player_id, day=day).aexists()
+
+        if not config:
+            await interaction.response.send_message(f"Day {day} has no reward configured yet.", ephemeral=True)
+            return
+
+        reward_type_name = {
+            RewardType.RANDOM_SPECIAL.value: "\U0001f3b0 Random Special",
+            RewardType.SELECTED_BALL.value: "\U0001f3b1 Selected Ball",
+            RewardType.SELECTED_BALL_WITH_SPECIAL.value: "\u2728 Selected Ball + Special",
+        }.get(config.reward_type, "Unknown")
+
+        embed = discord.Embed(
+            title=f"\U0001f381 Advent Day {day}",
+            color=discord.Color.green() if claimed else discord.Color.gold(),
+        )
+        embed.add_field(name="Reward Type", value=reward_type_name, inline=False)
+        if config.ball:
+            ball_emoji = ""
+            if config.ball.emoji_id and interaction.client:
+                emoji_obj = interaction.client.get_emoji(config.ball.emoji_id)
+                if emoji_obj:
+                    ball_emoji = f"{emoji_obj} "
+            embed.add_field(name="Ball", value=f"{ball_emoji}{config.ball.country}", inline=True)
+        if config.special:
+            embed.add_field(name="Special", value=config.special.name, inline=True)
+        if config.label:
+            embed.add_field(name="Note", value=config.label, inline=False)
+        embed.set_footer(text="\u2705 Claimed!" if claimed else "\u23f0 Not yet claimed — use /advent claim")
+
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+
 
 class AdventCalendar(commands.Cog):
     """Advent Calendar cog for Ballsdex v3."""
@@ -57,7 +129,7 @@ class AdventCalendar(commands.Cog):
         ball_obj = day_config.ball
         special_obj = day_config.special
 
-        embed = discord.Embed(title=f"Advent Calendar - Day {today}", color=discord.Color.gold())
+        embed = discord.Embed(title=f"\U0001f381 Advent Calendar - Day {today}", color=discord.Color.gold())
         reward_lines = []
 
         if reward_type == RewardType.RANDOM_SPECIAL.value:
@@ -78,7 +150,7 @@ class AdventCalendar(commands.Cog):
                         emoji = f"{emoji_obj} "
                 reward_lines.append(f"{emoji}{chosen_ball.country} + **{chosen_special.name}**")
             else:
-                reward_lines.append("No balls or specials available. Contact an admin.")
+                reward_lines.append("\u26a0\ufe0f No balls or specials available. Contact an admin.")
 
         elif reward_type == RewardType.SELECTED_BALL.value:
             if ball_obj:
@@ -93,7 +165,7 @@ class AdventCalendar(commands.Cog):
                         emoji = f"{emoji_obj} "
                 reward_lines.append(f"{emoji}{ball_obj.country}")
             else:
-                reward_lines.append("No ball configured for today. Contact an admin.")
+                reward_lines.append("\u26a0\ufe0f No ball configured for today. Contact an admin.")
 
         elif reward_type == RewardType.SELECTED_BALL_WITH_SPECIAL.value:
             if ball_obj:
@@ -108,15 +180,15 @@ class AdventCalendar(commands.Cog):
                     if emoji_obj:
                         emoji = f"{emoji_obj} "
                 special_name = special_obj.name if special_obj else "None"
-                reward_lines.append(f"{emoji}{ball_obj.country} with {special_name}")
+                reward_lines.append(f"{emoji}{ball_obj.country} with **{special_name}**")
             else:
-                reward_lines.append("No ball configured for today. Contact an admin.")
+                reward_lines.append("\u26a0\ufe0f No ball configured for today. Contact an admin.")
 
         await AdventClaim.objects.acreate(player=player, day=today)
 
         if reward_lines:
-            embed.add_field(name="Reward", value="\n".join(reward_lines), inline=False)
-        embed.add_field(name="Claimed by", value=interaction.user.mention, inline=False)
+            embed.add_field(name="\U0001f4e6 Reward", value="\n".join(reward_lines), inline=False)
+        embed.add_field(name="\U0001f464 Claimed by", value=interaction.user.mention, inline=False)
 
         if day_config.label:
             embed.set_footer(text=day_config.label)
@@ -132,31 +204,35 @@ class AdventCalendar(commands.Cog):
             return
 
         player = await Player.objects.filter(discord_id=user_id).afirst()
-        if not player:
-            await interaction.response.send_message("You haven't claimed any advent rewards yet.", ephemeral=True)
-            return
 
-        claimed_days = []
-        async for claim in AdventClaim.objects.filter(player=player).order_by("day"):
-            claimed_days.append(claim.day)
+        claimed_set: set[int] = set()
+        if player:
+            async for claim in AdventClaim.objects.filter(player=player).order_by("day"):
+                claimed_set.add(claim.day)
 
-        all_configs = [x async for x in AdventDayConfig.objects.filter(enabled=True).order_by("day")]
+        all_configs = {c.day: c async for c in AdventDayConfig.objects.filter(enabled=True)}
 
-        lines = []
-        for config in all_configs:
-            emoji = "🎁" if config.day in claimed_days else "⬛"
-            emoji_part = ""
-            if config.day in claimed_days:
-                emoji_part = f"**[Day {config.day}]**"
-            else:
-                emoji_part = f"Day {config.day}"
-            label = f" - {config.label}" if config.label else ""
-            lines.append(f"{emoji} {emoji_part}{label}")
+        now = timezone.now()
+        today = now.day
 
+        view = AdventCalendarView(player_id=user_id if player else 0)
+
+        for day in range(1, CALENDAR_DAYS + 1):
+            claimed = day in claimed_set
+            configured = day in all_configs
+            is_today = day == today
+            view.add_item(CalendarDayButton(day, claimed, configured, is_today))
+
+        claimed_count = len(claimed_set)
         embed = discord.Embed(
-            title="Advent Calendar Progress",
-            description="\n".join(lines) if lines else "No days configured.",
-            color=discord.Color.green(),
+            title=f"\U0001f4c5 Advent Calendar — {interaction.user.display_name}",
+            description=(
+                f"**{claimed_count} / {len(all_configs)}** days claimed\n"
+                "Click a day to see its reward!\n"
+                "\u2705 = Claimed | \U0001f4c5 = Today | \U0001f381 = Available | \u2b1b = Unconfigured"
+            ),
+            color=discord.Color.gold(),
         )
-        embed.set_footer(text=f"{len(claimed_days)} / {len(all_configs)} days claimed")
-        await interaction.response.send_message(embed=embed)
+        embed.set_footer(text="\U0001f381 Use /advent claim to claim today's reward!")
+
+        await interaction.response.send_message(embed=embed, view=view)

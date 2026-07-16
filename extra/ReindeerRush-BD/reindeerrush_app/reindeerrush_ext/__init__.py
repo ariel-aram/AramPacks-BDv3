@@ -1,8 +1,10 @@
 from typing import TYPE_CHECKING
 
+from .cog import ReindeerRush
+
 if TYPE_CHECKING:
     from ballsdex.core.bot import BallsDexBot
 
 
 async def setup(bot: "BallsDexBot"):
-    pass  # TODO: Implement reindeer rush racing game
+    await bot.add_cog(ReindeerRush(bot))

@@ -59,8 +59,11 @@ class SpecialSpawnCooldown:
         if self.lock.locked():
             return False
         async with self.lock:
+            guild = message.guild
+            assert guild is not None
+            member_count = guild.member_count or 0
             message_multiplier = 1.0
-            if message.guild.member_count < 5 or message.guild.member_count > 1000:
+            if member_count < 5 or member_count > 1000:
                 message_multiplier /= 2
             if message._state.intents.message_content and len(message.content) < 5:
                 message_multiplier /= 2
@@ -73,16 +76,19 @@ class SpecialSpawnCooldown:
         return True
 
     async def check_and_increment(self, message: discord.Message) -> bool:
-        if not message.guild.member_count:
+        guild = message.guild
+        assert guild is not None
+        member_count = guild.member_count or 0
+        if not member_count:
             return False
 
         delta_t = (message.created_at - self.time).total_seconds()
 
-        if message.guild.member_count < 5:
+        if member_count < 5:
             time_multiplier = 0.1
-        elif message.guild.member_count < 100:
+        elif member_count < 100:
             time_multiplier = 0.8
-        elif message.guild.member_count < 1000:
+        elif member_count < 1000:
             time_multiplier = 0.5
         else:
             time_multiplier = 0.2
@@ -110,7 +116,7 @@ class SpecialBallSpawnView(BallSpawnView):
         cb = random.choices(population=countryballs, weights=rarities, k=1)[0]
         return cls(bot, cb)
 
-    def get_random_special(self) -> Special | None:
+    def get_random_special(self) -> Special | None:  # type: ignore[override]
         population = [
             x
             for x in specials.values()
@@ -129,11 +135,16 @@ class SpecialBallSpawnView(BallSpawnView):
 
 
 async def _config_special_callback(interaction: discord.Interaction, channel: discord.TextChannel):
-    cog = interaction.client.get_cog("SpecialSpawnCog")
+    from discord.ext import commands as cmd
+
+    bot = interaction.client
+    if not isinstance(bot, cmd.Bot):
+        return
+    cog = bot.get_cog("SpecialSpawnCog")
     if cog is None:
         await interaction.response.send_message("The special spawn system is not loaded.", ephemeral=True)
         return
-    await cog._handle_special_config(interaction, channel)
+    await cast(SpecialSpawnCog, cog)._handle_special_config(interaction, channel)
 
 
 def _try_add_config_command(bot: "BallsDexBot", cog: SpecialSpawnCog) -> bool:
@@ -150,7 +161,7 @@ def _try_add_config_command(bot: "BallsDexBot", cog: SpecialSpawnCog) -> bool:
         callback=_config_special_callback,
         description="Configure the secondary special spawn channel with boosted rare rates.",
     )
-    special_cmd.checks.append(app_commands.checks.has_permissions(manage_guild=True).callback)
+    special_cmd.checks.append(app_commands.checks.has_permissions(manage_guild=True).callback)  # type: ignore[attr-defined]
     special_cmd.guild_only = True
     group.add_command(special_cmd)
     return True
@@ -167,7 +178,7 @@ class SpecialSpawnCog(commands.Cog):
         async for config in SpecialSpawnConfig.objects.filter(special_channel__isnull=False).only(
             "guild_id", "special_channel"
         ):
-            self.cache[config.guild_id] = config.special_channel
+            self.cache[config.guild_id] = cast(int, config.special_channel)
             i += 1
         log.info(f"Loaded {i} special spawn channel{'s' if i != 1 else ''} in cache.")
 

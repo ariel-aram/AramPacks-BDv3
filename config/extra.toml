@@ -9,6 +9,13 @@ path = "moderation_app"
 enabled = true
 editable = true
 
+# Special Spawn Extra Package
+[[ballsdex.packages]]
+location = "code/extra/SpecialSpawn-BD"
+path = "specialspawn"
+enabled = true
+editable = true
+
 # Advent Calendar Extra Package
 [[ballsdex.packages]]
 location = "code/extra/Advent-BD"

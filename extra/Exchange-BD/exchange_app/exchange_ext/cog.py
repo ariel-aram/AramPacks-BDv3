@@ -1,5 +1,6 @@
 import logging
 import random
+from typing import TYPE_CHECKING
 
 import discord
 from ballsdex.core.utils.buttons import ConfirmChoiceView
@@ -7,6 +8,9 @@ from ballsdex.core.utils.transformers import BallInstanceTransformer
 from bd_models.models import Ball, BallInstance, Player, TradeObject
 from discord import app_commands
 from discord.ext import commands
+
+if TYPE_CHECKING:
+    from ballsdex.core.bot import BallsDexBot
 
 log = logging.getLogger("ballsdex.packages.exchange")
 
@@ -21,7 +25,11 @@ class Exchange(commands.Cog):
 
     @app_commands.command(name="exchange", description="Exchange one of your balls for a random new one.")
     @app_commands.describe(countryball="Select a ball from your collection to exchange.")
-    async def exchange(self, interaction: discord.Interaction, countryball: BallInstanceTransformer):
+    async def exchange(
+        self,
+        interaction: discord.Interaction["BallsDexBot"],
+        countryball: app_commands.Transform[BallInstance, BallInstanceTransformer],
+    ):
         user_id = interaction.user.id
         now = discord.utils.utcnow().timestamp()
 
@@ -36,7 +44,7 @@ class Exchange(commands.Cog):
             return
 
         player, _ = await Player.objects.aget_or_create(discord_id=user_id)
-        chosen = await BallInstance.objects.filter(id=countryball.id, player=player).select_related("ball").afirst()
+        chosen = await BallInstance.objects.filter(id=countryball.id, player=player).select_related("ball").afirst()  # type: ignore[attr-defined]
         if chosen is None:
             await interaction.response.send_message("\u274c You don\u2019t own that ball.", ephemeral=True)
             return
@@ -61,7 +69,7 @@ class Exchange(commands.Cog):
         hp_bonus = random.randint(-20, 20)
 
         try:
-            await TradeObject.objects.filter(ballinstance_id=chosen.id).adelete()
+            await TradeObject.objects.filter(ballinstance_id=chosen.id).adelete()  # type: ignore[attr-defined]
             await BallInstance.objects.acreate(
                 player=player,
                 ball=new_ball,
