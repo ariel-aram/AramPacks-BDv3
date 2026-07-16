@@ -17,3 +17,5 @@ Then lastly, run the following command to restart the bot and load the extras.
 ```bash
 docker compose up -d --build
 ```
+
+The original creators behind most of the extras added into this repository are **Haymooed**, **Caylies**, and **molteencreates**. Therefore, credits go to them.

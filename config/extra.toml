@@ -72,7 +72,7 @@ path = "preview_app"
 enabled = true
 editable = true
 
-# ReindeerRush Extra Package (skeleton)
+# ReindeerRush Extra Package
 [[ballsdex.packages]]
 location = "code/extra/ReindeerRush-BD"
 path = "reindeerrush_app"

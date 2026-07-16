@@ -6,7 +6,8 @@ readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
     "discord-py<2.7.1",
-    "django==6.0.0",
+    "django>=6.0.1,<6.2",
+    "pillow>=12.0,<13.0",
     "django-types>=0.24.0",
     "pyright>=1.1.411",
     "ruff>=0.15.21",
@@ -15,6 +16,9 @@ dependencies = [
 
 [tool.uv.sources]
 ballsdex = { git = "https://github.com/Ballsdex-Team/BallsDex-DiscordBot.git", branch = "v3" }
+
+[tool.uv]
+override-dependencies = ["django>=6.0.1,<6.2", "pillow>=12.0.1,<13.0"]
 
 [tool.ruff]
 line-length = 120
