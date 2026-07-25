@@ -12,7 +12,7 @@ editable = true
 # Special Spawn Extra Package
 [[ballsdex.packages]]
 location = "code/extra/SpecialSpawn-BD"
-path = "specialspawn"
+path = "specialspawn_app"
 enabled = true
 editable = true
 

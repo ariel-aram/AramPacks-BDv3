@@ -1,7 +1,7 @@
 import logging
 from typing import TYPE_CHECKING
 
-from specialspawn.ext.cog import SpecialSpawnCog, _try_add_config_command
+from .cog import SpecialSpawnCog, _try_add_config_command
 
 if TYPE_CHECKING:
     from ballsdex.core.bot import BallsDexBot
