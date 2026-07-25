@@ -30,6 +30,13 @@ path = "cfcommands_app"
 enabled = true
 editable = true
 
+# Codes Extra Package
+[[ballsdex.packages]]
+location = "code/extra/Codes-BD"
+path = "codes_app"
+enabled = true
+editable = true
+
 # Events Extra Package
 [[ballsdex.packages]]
 location = "code/extra/Events-BD"
