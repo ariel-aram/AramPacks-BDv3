@@ -15,7 +15,8 @@ from discord import app_commands
 from discord.ext import commands
 from django.utils import timezone
 from settings.models import settings
-from specialspawn.models import SpecialSpawnConfig
+
+from specialspawn_app.models import SpecialSpawnConfig
 
 if TYPE_CHECKING:
     from ballsdex.core.bot import BallsDexBot
