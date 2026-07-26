@@ -1,24 +1,9 @@
 [project]
 name = "moderation-bd"
 version = "1.1.5"
-
 description = "Just a moderation extra package for Ballsdex v3, what else did you guess, duh."
-license = "MIT"
-license-files = ["LICENSE"]
-authors = [
-    { name = "arielaram", email = "arielaram@nationdex.com" },
-    { name = "molteencreates" }
-]
-readme = "README.md"
+authors = [{name = "molteencreates"}]
 requires-python = ">=3.14"
-# dependencies = [
-#     "ballsdex>=3.0.0",
-# ]
-
-[project.urls]
-Repository = "https://github.com/arielaram/Moderation-BD"
-Documentation = "https://github.com/arielaram/Moderation-BD#readme"
-Issues = "https://github.com/arielaram/Moderation-BD/issues"
 
 [build-system]
 requires = ["hatchling"]

@@ -27,9 +27,20 @@ ballsdex = {git = "https://github.com/Ballsdex-Team/BallsDex-DiscordBot.git", br
 number = true
 wrap = 120
 
+[tool.mypy]
+ignore_missing_imports = false
+python_version = "3.14"
+strict = false
+
 [tool.pymarkdown]
 plugins.md013.enabled = false
 plugins.md041.enabled = false
+
+[tool.pyrefly]
+source_directories = ["extra"]
+ignore_all_errors = false
+python_version = "3.14"
+search_path = [".venv/Lib/site-packages"]
 
 [tool.pyright]
 typeCheckingMode = "standard"
@@ -52,17 +63,6 @@ reportUnnecessaryTypeIgnoreComment = true
 reportIncompatibleMethodOverride = "warning"
 reportIncompatibleVariableOverride = "warning"
 useLibraryCodeForTypes = true
-
-[tool.pyrefly]
-source_directories = ["extra"]
-ignore_all_errors = false
-python_version = "3.14"
-search_path = [".venv/Lib/site-packages"]
-
-[tool.mypy]
-ignore_missing_imports = false
-python_version = "3.14"
-strict = false
 
 [tool.ruff]
 line-length = 120

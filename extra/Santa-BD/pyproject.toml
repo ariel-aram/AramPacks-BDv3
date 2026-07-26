@@ -1,10 +1,9 @@
 [project]
 name = "santa-bd"
 version = "1.0.0"
+description = "A little extra package for Ballsdex v3, just some Santa stuff."
+authors = [{name = "haymooed"}]
 requires-python = ">=3.14"
-# dependencies = [
-#     "ballsdex>=3.0.0",
-# ]
 
 [build-system]
 requires = ["hatchling"]

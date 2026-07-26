@@ -1,10 +1,9 @@
 [project]
 name = "reindeerrush-bd"
 version = "0.1.0"
+description = "Reindeer Rush mini-game extra package for Ballsdex v3."
+authors = [{name = "haymooed"}]
 requires-python = ">=3.14"
-# dependencies = [
-#     "ballsdex>=3.0.0",
-# ]
 
 [build-system]
 requires = ["hatchling"]

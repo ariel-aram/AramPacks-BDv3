@@ -1,24 +1,9 @@
 [project]
 name = "advent-bd"
 version = "1.0.0"
-
 description = "An Advent Calendar extra package for Ballsdex v3, offering daily rewards throughout December."
-license = "MIT"
-license-files = ["LICENSE"]
-authors = [
-    { name = "arielaram", email = "arielaram@nationdex.com" },
-    { name = "haymooed" }
-]
-readme = "README.md"
+authors = [{name = "haymooed"}]
 requires-python = ">=3.14"
-# dependencies = [
-#     "ballsdex>=3.0.0",
-# ]
-
-[project.urls]
-Repository = "https://github.com/arielaram/Advent-BD"
-Documentation = "https://github.com/arielaram/Advent-BD#readme"
-Issues = "https://github.com/arielaram/Advent-BD/issues"
 
 [build-system]
 requires = ["hatchling"]
