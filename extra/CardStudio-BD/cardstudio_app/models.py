@@ -4,33 +4,31 @@ from django.core.exceptions import ValidationError
 from django.db import models
 
 
-def font_upload_to(_instance, filename: str) -> str:
-    return f"cardstudio/fonts/{filename}"
-
-
 class CardConfig(models.Model):
     enabled = models.BooleanField(default=True, help_text="Use Card Studio for card generation.")
 
-    title_font = models.FileField(upload_to=font_upload_to, null=True, blank=True, help_text="Title font (.ttf/.otf).")
+    title_font = models.FileField(
+        upload_to="cardstudio/fonts/", null=True, blank=True, help_text="Title font (.ttf/.otf."
+    )
     title_size = models.PositiveIntegerField(default=170)
 
     capacity_name_font = models.FileField(
-        upload_to=font_upload_to, null=True, blank=True, help_text="Ability name font (.ttf/.otf)."
+        upload_to="cardstudio/fonts/", null=True, blank=True, help_text="Ability name font (.ttf/.otf)."
     )
     capacity_name_size = models.PositiveIntegerField(default=110)
 
     capacity_description_font = models.FileField(
-        upload_to=font_upload_to, null=True, blank=True, help_text="Ability description font (.ttf/.otf)."
+        upload_to="cardstudio/fonts/", null=True, blank=True, help_text="Ability description font (.ttf/.otf)."
     )
     capacity_description_size = models.PositiveIntegerField(default=75)
 
-    stats_font = models.FileField(upload_to=font_upload_to, null=True, blank=True, help_text="Health/attack font.")
+    stats_font = models.FileField(upload_to="cardstudio/fonts/", null=True, blank=True, help_text="Health/attack font.")
     stats_size = models.PositiveIntegerField(default=130)
 
-    credits_font = models.FileField(upload_to=font_upload_to, null=True, blank=True, help_text="Credits font.")
+    credits_font = models.FileField(upload_to="cardstudio/fonts/", null=True, blank=True, help_text="Credits font.")
     credits_size = models.PositiveIntegerField(default=40)
 
-    rarity_font = models.FileField(upload_to=font_upload_to, null=True, blank=True, help_text="Rarity font.")
+    rarity_font = models.FileField(upload_to="cardstudio/fonts/", null=True, blank=True, help_text="Rarity font.")
     rarity_size = models.PositiveIntegerField(default=130)
 
     title_x = models.IntegerField(default=50)

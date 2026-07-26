@@ -86,14 +86,6 @@ class Exchange(commands.Cog):
         new_name = getattr(new_ball, "country", getattr(new_ball, "name", "Unknown"))
         emoji = self.bot.get_emoji(getattr(new_ball, "emoji_id", None)) or "\U0001f3b2"
 
-        image_url = (
-            getattr(new_ball, "spawn_image", None)
-            or getattr(new_ball, "spawn_image_url", None)
-            or getattr(new_ball, "image_url", None)
-            or getattr(new_ball, "image", None)
-            or getattr(new_ball, "card_url", None)
-        )
-
         embed = discord.Embed(
             title="Exchange Complete!",
             description=f"**{interaction.user.display_name}** exchanged **{old_name}** for {emoji} **{new_name}**!",
@@ -101,7 +93,5 @@ class Exchange(commands.Cog):
         )
         embed.add_field(name="New Stats", value=f"ATK {atk_bonus:+}% | HP {hp_bonus:+}%")
         embed.set_footer(text="A fair trade... or was it?")
-        if image_url:
-            embed.set_image(url=image_url)
 
         await interaction.followup.send(embed=embed)
