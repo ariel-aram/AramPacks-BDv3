@@ -1,104 +1,104 @@
 # ──────────────────────────────────────────
 # V3 Extra Packages Configuration
 # ──────────────────────────────────────────
-# Packages are installed from the AramPacks-BDv3 monorepo.
-# Each entry points to its subdirectory inside the repo
-# so the files are not copied into the Ballsdex extra folder.
+# Packages are installed from the AramPacks-BDv3 monorepo via git+https URLs.
+# The `location` value is passed directly to uv pip install.
+# The `path` value is the Django app module Ballsdex should load.
 
 # Moderation Extra Package
 [[ballsdex.packages]]
-repo = "https://github.com/ariel-aram/AramPacks-BDv3"
-branch = "main"
-subdirectory = "extra/Moderation-BD"
+location = "git+https://github.com/ariel-aram/AramPacks-BDv3.git@main#subdirectory=extra/Moderation-BD"
+path = "moderation_app"
 enabled = true
+editable = false
 
 # Special Spawn Extra Package
 [[ballsdex.packages]]
-repo = "https://github.com/ariel-aram/AramPacks-BDv3"
-branch = "main"
-subdirectory = "extra/SpecialSpawn-BD"
+location = "git+https://github.com/ariel-aram/AramPacks-BDv3.git@main#subdirectory=extra/SpecialSpawn-BD"
+path = "specialspawn_app"
 enabled = true
+editable = false
 
 # Advent Calendar Extra Package
 [[ballsdex.packages]]
-repo = "https://github.com/ariel-aram/AramPacks-BDv3"
-branch = "main"
-subdirectory = "extra/Advent-BD"
+location = "git+https://github.com/ariel-aram/AramPacks-BDv3.git@main#subdirectory=extra/Advent-BD"
+path = "advent_app"
 enabled = true
+editable = false
 
 # CFCommands Extra Package
 [[ballsdex.packages]]
-repo = "https://github.com/ariel-aram/AramPacks-BDv3"
-branch = "main"
-subdirectory = "extra/CFCommands-BD"
+location = "git+https://github.com/ariel-aram/AramPacks-BDv3.git@main#subdirectory=extra/CFCommands-BD"
+path = "cfcommands_app"
 enabled = true
+editable = false
 
 # Events Extra Package
 [[ballsdex.packages]]
-repo = "https://github.com/ariel-aram/AramPacks-BDv3"
-branch = "main"
-subdirectory = "extra/Events-BD"
+location = "git+https://github.com/ariel-aram/AramPacks-BDv3.git@main#subdirectory=extra/Events-BD"
+path = "events_app"
 enabled = true
+editable = false
 
 # Exchange Extra Package
 [[ballsdex.packages]]
-repo = "https://github.com/ariel-aram/AramPacks-BDv3"
-branch = "main"
-subdirectory = "extra/Exchange-BD"
+location = "git+https://github.com/ariel-aram/AramPacks-BDv3.git@main#subdirectory=extra/Exchange-BD"
+path = "exchange_app"
 enabled = true
+editable = false
 
 # Flex Extra Package
 [[ballsdex.packages]]
-repo = "https://github.com/ariel-aram/AramPacks-BDv3"
-branch = "main"
-subdirectory = "extra/Flex-BD"
+location = "git+https://github.com/ariel-aram/AramPacks-BDv3.git@main#subdirectory=extra/Flex-BD"
+path = "flex_app"
 enabled = true
+editable = false
 
 # Funhouse Extra Package
 [[ballsdex.packages]]
-repo = "https://github.com/ariel-aram/AramPacks-BDv3"
-branch = "main"
-subdirectory = "extra/Funhouse-BD"
+location = "git+https://github.com/ariel-aram/AramPacks-BDv3.git@main#subdirectory=extra/Funhouse-BD"
+path = "funhouse_app"
 enabled = true
+editable = false
 
 # Museum Extra Package
 [[ballsdex.packages]]
-repo = "https://github.com/ariel-aram/AramPacks-BDv3"
-branch = "main"
-subdirectory = "extra/Museum-BD"
+location = "git+https://github.com/ariel-aram/AramPacks-BDv3.git@main#subdirectory=extra/Museum-BD"
+path = "museum_app"
 enabled = true
+editable = false
 
 # Preview Extra Package
 [[ballsdex.packages]]
-repo = "https://github.com/ariel-aram/AramPacks-BDv3"
-branch = "main"
-subdirectory = "extra/Preview-BD"
+location = "git+https://github.com/ariel-aram/AramPacks-BDv3.git@main#subdirectory=extra/Preview-BD"
+path = "preview_app"
 enabled = true
+editable = false
 
 # ReindeerRush Extra Package
 [[ballsdex.packages]]
-repo = "https://github.com/ariel-aram/AramPacks-BDv3"
-branch = "main"
-subdirectory = "extra/ReindeerRush-BD"
+location = "git+https://github.com/ariel-aram/AramPacks-BDv3.git@main#subdirectory=extra/ReindeerRush-BD"
+path = "reindeerrush_app"
 enabled = false
+editable = false
 
 # Santa Mail Extra Package
 [[ballsdex.packages]]
-repo = "https://github.com/ariel-aram/AramPacks-BDv3"
-branch = "main"
-subdirectory = "extra/Santa-BD"
+location = "git+https://github.com/ariel-aram/AramPacks-BDv3.git@main#subdirectory=extra/Santa-BD"
+path = "santa_app"
 enabled = true
+editable = false
 
 # Wishlist Extra Package
 [[ballsdex.packages]]
-repo = "https://github.com/ariel-aram/AramPacks-BDv3"
-branch = "main"
-subdirectory = "extra/Wishlist-BD"
+location = "git+https://github.com/ariel-aram/AramPacks-BDv3.git@main#subdirectory=extra/Wishlist-BD"
+path = "wishlist_app"
 enabled = true
+editable = false
 
 # Card Studio Extra Package
 [[ballsdex.packages]]
-repo = "https://github.com/ariel-aram/AramPacks-BDv3"
-branch = "main"
-subdirectory = "extra/CardStudio-BD"
+location = "git+https://github.com/ariel-aram/AramPacks-BDv3.git@main#subdirectory=extra/CardStudio-BD"
+path = "cardstudio_app"
 enabled = true
+editable = false
