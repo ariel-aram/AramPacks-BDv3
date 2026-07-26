@@ -1,15 +1,9 @@
-from __future__ import annotations
-
-from typing import TYPE_CHECKING
-
 import discord
+from ballsdex.core.bot import BallsDexBot  # noqa: TC002
+from ballsdex.core.utils.transformers import BallTransformer  # noqa: TC002
+from bd_models.models import Ball  # noqa: TC002
 from discord import app_commands
 from discord.ext import commands
-
-if TYPE_CHECKING:
-    from ballsdex.core.bot import BallsDexBot
-    from ballsdex.core.utils.transformers import BallTransformer
-    from bd_models.models import Ball
 
 
 class CFCommands(commands.Cog):

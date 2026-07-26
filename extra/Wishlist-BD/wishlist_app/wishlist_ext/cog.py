@@ -1,18 +1,14 @@
-from __future__ import annotations
-
-from typing import TYPE_CHECKING, override
+from typing import override
 
 import discord
+from ballsdex.core.bot import BallsDexBot  # noqa: TC002
+from ballsdex.core.utils.transformers import BallTransformer  # noqa: TC002
 from bd_models.models import Ball, BallInstance
 from discord import app_commands
 from discord.ext import commands
 from django.core.exceptions import ObjectDoesNotExist
 
 from ..models import WishlistItem
-
-if TYPE_CHECKING:
-    from ballsdex.core.bot import BallsDexBot
-    from ballsdex.core.utils.transformers import BallTransformer
 
 
 class WishlistManageView(discord.ui.View):

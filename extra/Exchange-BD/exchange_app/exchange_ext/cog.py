@@ -1,18 +1,14 @@
-from __future__ import annotations
-
 import logging
 import random
-from typing import TYPE_CHECKING, cast
+from typing import cast
 
 import discord
+from ballsdex.core.bot import BallsDexBot  # noqa: TC002
 from ballsdex.core.utils.buttons import ConfirmChoiceView
+from ballsdex.core.utils.transformers import BallInstanceTransformer  # noqa: TC002
 from bd_models.models import Ball, BallInstance, Player, TradeObject
 from discord import app_commands
 from discord.ext import commands
-
-if TYPE_CHECKING:
-    from ballsdex.core.bot import BallsDexBot
-    from ballsdex.core.utils.transformers import BallInstanceTransformer
 
 log = logging.getLogger("ballsdex.packages.exchange")
 
