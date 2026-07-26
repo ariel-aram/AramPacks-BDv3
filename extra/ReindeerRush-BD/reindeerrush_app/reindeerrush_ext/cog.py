@@ -1,6 +1,8 @@
+from __future__ import annotations
+
 import asyncio
 import random
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, override
 
 import discord
 from discord import app_commands
@@ -47,7 +49,7 @@ class ReindeerRaceView(discord.ui.View):
             await interaction.response.send_message("The race has already started!", ephemeral=True)
             return
         chosen = self.select_reindeer.values[0]
-        for name, users in self.rooters.items():
+        for _name, users in self.rooters.items():
             if interaction.user.id in users:
                 users.remove(interaction.user.id)
         self.rooters[chosen].append(interaction.user.id)
@@ -77,7 +79,7 @@ class ReindeerRaceView(discord.ui.View):
 
     async def _run_race(self, interaction: discord.Interaction) -> None:
         reindeer_names = [r["name"] for r in REINDEER_DATA]
-        positions: dict[str, int] = {name: 0 for name in reindeer_names}
+        positions: dict[str, int] = dict.fromkeys(reindeer_names, 0)
         finished: list[str] = []
 
         message = interaction.message
@@ -127,6 +129,7 @@ class ReindeerRaceView(discord.ui.View):
 
         self.stop()
 
+    @override
     async def on_timeout(self) -> None:
         if not self.started:
             self.clear_items()
@@ -142,7 +145,7 @@ class ReindeerRaceView(discord.ui.View):
 class ReindeerRush(commands.Cog):
     """A festive reindeer racing game with interactive components."""
 
-    def __init__(self, bot: "BallsDexBot") -> None:
+    def __init__(self, bot: BallsDexBot) -> None:
         self.bot = bot
 
     @app_commands.command(

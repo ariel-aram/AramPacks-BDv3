@@ -17,7 +17,7 @@ if TYPE_CHECKING:
 class CardStudio(commands.Cog):
     """Card Studio configuration viewer."""
 
-    def __init__(self, bot: "BallsDexBot"):
+    def __init__(self, bot: BallsDexBot):
         self.bot = bot
 
     @app_commands.command(name="cardstudio", description="Show the current card studio configuration.")

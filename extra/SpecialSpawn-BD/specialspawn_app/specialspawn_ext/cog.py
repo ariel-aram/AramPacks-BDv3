@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import logging
 import random
 from collections import deque, namedtuple
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, cast, override
 
 import discord
 from ballsdex.packages.countryballs.countryball import BallSpawnView
@@ -48,10 +49,8 @@ class SpecialSpawnCooldown:
             max(1, settings.spawn_chance_min // 2),
             max(2, settings.spawn_chance_max // 2),
         )
-        try:
+        with contextlib.suppress(RuntimeError):
             self.lock.release()
-        except RuntimeError:
-            pass
         self.time = time
 
     async def increase(self, message: discord.Message) -> bool:
@@ -67,7 +66,7 @@ class SpecialSpawnCooldown:
                 message_multiplier /= 2
             if message._state.intents.message_content and len(message.content) < 5:
                 message_multiplier /= 2
-            if len(set(x.author_id for x in self.message_cache)) < 4 or (
+            if len({x.author_id for x in self.message_cache}) < 4 or (
                 len(list(filter(lambda x: x.author_id == message.author.id, self.message_cache))) / 100 > 0.4
             ):
                 message_multiplier /= 2
@@ -107,8 +106,9 @@ class SpecialSpawnCooldown:
 
 
 class SpecialBallSpawnView(BallSpawnView):
+    @override
     @classmethod
-    async def get_random(cls, bot: "BallsDexBot"):
+    async def get_random(cls, bot: BallsDexBot):
         countryballs = list(filter(lambda m: m.enabled, balls.values()))
         if not countryballs:
             raise RuntimeError("No ball to spawn")
@@ -129,25 +129,23 @@ class SpecialBallSpawnView(BallSpawnView):
 
         boosted_rarities = [x.rarity * SPECIAL_RARITY_BOOST for x in population]
         common_weight = max(0.0, 1.0 - sum(boosted_rarities))
-        weights = boosted_rarities + [common_weight]
-        special: Special | None = random.choices(population=population + [None], weights=weights, k=1)[0]
+        weights = [*boosted_rarities, common_weight]
+        special: Special | None = random.choices(population=[*population, None], weights=weights, k=1)[0]
         return special
 
 
 async def _config_special_callback(interaction: discord.Interaction, channel: discord.TextChannel):
-    from discord.ext import commands as cmd
-
     bot = interaction.client
-    if not isinstance(bot, cmd.Bot):
+    if not isinstance(bot, commands.Bot):
         return
     cog = bot.get_cog("SpecialSpawnCog")
     if cog is None:
         await interaction.response.send_message("The special spawn system is not loaded.", ephemeral=True)
         return
-    await cast(SpecialSpawnCog, cog)._handle_special_config(interaction, channel)
+    await cast("SpecialSpawnCog", cog)._handle_special_config(interaction, channel)
 
 
-def _try_add_config_command(bot: "BallsDexBot", cog: SpecialSpawnCog) -> bool:
+def _try_add_config_command(bot: BallsDexBot, cog: SpecialSpawnCog) -> bool:
     config_cog = bot.get_cog("Config")
     if config_cog is None:
         return False
@@ -168,7 +166,7 @@ def _try_add_config_command(bot: "BallsDexBot", cog: SpecialSpawnCog) -> bool:
 
 
 class SpecialSpawnCog(commands.Cog):
-    def __init__(self, bot: "BallsDexBot"):
+    def __init__(self, bot: BallsDexBot):
         self.bot = bot
         self.cache: dict[int, int] = {}
         self.cooldowns: dict[int, SpecialSpawnCooldown] = {}
@@ -178,7 +176,7 @@ class SpecialSpawnCog(commands.Cog):
         async for config in SpecialSpawnConfig.objects.filter(special_channel__isnull=False).only(
             "guild_id", "special_channel"
         ):
-            self.cache[config.guild_id] = cast(int, config.special_channel)
+            self.cache[config.guild_id] = cast("int", config.special_channel)
             i += 1
         log.info(f"Loaded {i} special spawn channel{'s' if i != 1 else ''} in cache.")
 
@@ -243,4 +241,4 @@ class SpecialSpawnCog(commands.Cog):
 
         ball = await SpecialBallSpawnView.get_random(self.bot)
         ball.algo = "specialspawn"
-        await ball.spawn(cast(discord.TextChannel, channel))
+        await ball.spawn(cast("discord.TextChannel", channel))

@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 import random
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, override
 
 import discord
 from discord import app_commands
@@ -63,6 +65,7 @@ class RerollFortuneView(discord.ui.View):
         embed.set_footer(text="Take it with a grain of glitter \u2728")
         await interaction.response.edit_message(embed=embed, view=self)
 
+    @override
     async def on_timeout(self) -> None:
         for child in self.children:
             if hasattr(child, "disabled"):
@@ -86,6 +89,7 @@ class CheerAgainView(discord.ui.View):
         embed.set_footer(text="Spread the hype!")
         await interaction.response.edit_message(embed=embed, view=self)
 
+    @override
     async def on_timeout(self) -> None:
         for child in self.children:
             if hasattr(child, "disabled"):
@@ -111,6 +115,7 @@ class ConfettiButtonView(discord.ui.View):
         embed.set_footer(text=f"Confetti storms: {self.count}")
         await interaction.response.edit_message(embed=embed, view=self)
 
+    @override
     async def on_timeout(self) -> None:
         for child in self.children:
             if hasattr(child, "disabled"):
@@ -120,7 +125,7 @@ class ConfettiButtonView(discord.ui.View):
 class Funhouse(commands.Cog):
     """Lighthearted slash commands with interactive components."""
 
-    def __init__(self, bot: "BallsDexBot") -> None:
+    def __init__(self, bot: BallsDexBot) -> None:
         self.bot = bot
 
     @app_commands.command(name="fortune", description="Receive a playful fortune with a reroll button.")

@@ -1,6 +1,8 @@
+from __future__ import annotations
+
 import logging
 import random
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, override
 
 import discord
 from bd_models.models import Ball, BallInstance, Player, Special
@@ -41,6 +43,7 @@ class CalendarDayButton(discord.ui.Button["AdventCalendarView"]):
         self.day = day
         self.claimed = claimed
 
+    @override
     async def callback(self, interaction: discord.Interaction) -> None:
         view = self.view
         if view is None:
@@ -93,11 +96,11 @@ class AdventCalendar(commands.Cog):
 
     group = app_commands.Group(name="advent", description="Advent Calendar commands.")
 
-    def __init__(self, bot: "BallsDexBot"):
+    def __init__(self, bot: BallsDexBot):
         self.bot = bot
 
     @group.command(name="claim", description="Claim your daily advent calendar reward.")
-    async def claim(self, interaction: discord.Interaction["BallsDexBot"]):
+    async def claim(self, interaction: discord.Interaction[BallsDexBot]):
         user_id = interaction.user.id
         blacklist = getattr(self.bot, "blacklist", set())
         if user_id in blacklist:
@@ -196,7 +199,7 @@ class AdventCalendar(commands.Cog):
         await interaction.response.send_message(embed=embed)
 
     @group.command(name="calendar", description="View your advent calendar progress.")
-    async def calendar(self, interaction: discord.Interaction["BallsDexBot"]):
+    async def calendar(self, interaction: discord.Interaction[BallsDexBot]):
         user_id = interaction.user.id
         blacklist = getattr(self.bot, "blacklist", set())
         if user_id in blacklist:

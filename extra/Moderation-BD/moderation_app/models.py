@@ -1,3 +1,5 @@
+from typing import override
+
 from django.db import models
 
 
@@ -14,6 +16,7 @@ class Warning(models.Model):
             models.Index(fields=["guild_id", "user_id"]),
         ]
 
+    @override
     def __str__(self):
         return f"Warning(guild={self.guild_id}, user={self.user_id}, reason={self.reason!r})"
 
@@ -22,5 +25,6 @@ class ModerationConfig(models.Model):
     guild_id = models.BigIntegerField(unique=True)
     muted_role_id = models.BigIntegerField(null=True, blank=True)
 
+    @override
     def __str__(self):
         return f"ModerationConfig(guild={self.guild_id}, muted_role={self.muted_role_id})"

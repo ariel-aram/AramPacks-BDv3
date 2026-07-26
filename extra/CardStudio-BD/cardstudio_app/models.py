@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any, override
+
 from django.core.exceptions import ValidationError
 from django.db import models
 
@@ -96,10 +98,12 @@ class CardConfig(models.Model):
         verbose_name = "Card Studio configuration"
         verbose_name_plural = "Card Studio configuration"
 
+    @override
     def __str__(self) -> str:
         return "Card Studio configuration"
 
-    def save(self, *args, **kwargs):
+    @override
+    def save(self, *args: Any, **kwargs: Any) -> None:
         if not self.pk and CardConfig.objects.exists():
             raise ValidationError("Only one Card Studio configuration can exist.")
         return super().save(*args, **kwargs)

@@ -1,7 +1,11 @@
+from __future__ import annotations
+
+import contextlib
 import random
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, override
 
 import discord
+from ballsdex.core.utils.utils import is_staff
 from ballsdex.settings import settings
 from bd_models.models import Ball, BallInstance, BlacklistedID, Player
 from discord import app_commands
@@ -14,7 +18,7 @@ if TYPE_CHECKING:
 class SantaConfirmView(discord.ui.View):
     def __init__(self):
         super().__init__(timeout=30)
-        self.value: Optional[bool] = None
+        self.value: bool | None = None
 
     @discord.ui.button(label="\u2705 Deliver Gifts!", style=discord.ButtonStyle.green)
     async def confirm(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
@@ -28,12 +32,13 @@ class SantaConfirmView(discord.ui.View):
         self.clear_items()
         await interaction.response.edit_message(content="Santa delivery cancelled.", view=None)
 
+    @override
     async def on_timeout(self) -> None:
         self.value = False
 
 
 class SantaMail(commands.Cog):
-    def __init__(self, bot):
+    def __init__(self, bot: BallsDexBot) -> None:
         self.bot = bot
         self.santa_loop.start()
 
@@ -81,19 +86,15 @@ class SantaMail(commands.Cog):
             )
             embed.set_footer(text="Happy holidays from Santa \U0001f384")
 
-            try:
+            with contextlib.suppress(discord.Forbidden):
                 await user.send(embed=embed)
-            except discord.Forbidden:
-                pass
 
     @santa_loop.before_loop
     async def before_santa_loop(self):
         await self.bot.wait_until_ready()
 
     @app_commands.command(name="santamail", description="Force Santa to deliver gifts right now.")
-    async def santamail(self, interaction: discord.Interaction["BallsDexBot"]):
-        from ballsdex.core.utils.utils import is_staff
-
+    async def santamail(self, interaction: discord.Interaction[BallsDexBot]):
         if not await is_staff(interaction):
             await interaction.response.send_message("You are not allowed to use this command.", ephemeral=True)
             return

@@ -63,6 +63,17 @@ reportUnnecessaryTypeIgnoreComment = true
 reportIncompatibleMethodOverride = "warning"
 reportIncompatibleVariableOverride = "warning"
 useLibraryCodeForTypes = true
+reportUnusedVariable = "error"
+reportUnnecessaryIsInstance = "warning"
+reportUnnecessaryComparison = "warning"
+reportUnnecessaryContains = "warning"
+reportMatchNotExhaustive = "warning"
+reportUnreachable = "error"
+reportMissingParameterType = "warning"
+reportDeprecated = "warning"
+reportDuplicateImport = "warning"
+reportUnnecessaryCast = "warning"
+reportImplicitOverride = "warning"
 
 [tool.ruff]
 line-length = 120
@@ -70,14 +81,14 @@ indent-width = 4
 target-version = "py314"
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "W"]
-ignore = ["E203"]
+select = ["E", "F", "I", "W", "B", "UP", "C4", "SIM", "RUF", "ASYNC", "T20", "TC", "PLC", "PLE", "PLW"]
+ignore = ["E203", "RUF012"]
 
 [tool.ruff.lint.isort]
 split-on-trailing-comma = false
 
 [tool.ruff.lint.per-file-ignores]
-"extra/*/migrations/*" = ["E501"]
+"extra/*/migrations/*" = ["E501", "B010"]
 
 [tool.tomlsort]
 in_place = true

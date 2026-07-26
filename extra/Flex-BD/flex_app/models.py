@@ -1,3 +1,5 @@
+from typing import override
+
 from django.db import models
 
 
@@ -8,5 +10,6 @@ class FlexData(models.Model):
     class Meta:
         db_table = "flexdata"
 
+    @override
     def __str__(self):
         return f"FlexData(user={self.user_id})"

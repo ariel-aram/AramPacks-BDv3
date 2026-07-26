@@ -1,11 +1,18 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, override
+
 import discord
-from ballsdex.core.utils.transformers import BallTransformer
 from bd_models.models import Ball, BallInstance
 from discord import app_commands
 from discord.ext import commands
 from django.core.exceptions import ObjectDoesNotExist
 
 from ..models import WishlistItem
+
+if TYPE_CHECKING:
+    from ballsdex.core.bot import BallsDexBot
+    from ballsdex.core.utils.transformers import BallTransformer
 
 
 class WishlistManageView(discord.ui.View):
@@ -106,6 +113,7 @@ class WishlistManageView(discord.ui.View):
             ephemeral=True,
         )
 
+    @override
     async def on_timeout(self) -> None:
         for child in self.children:
             if hasattr(child, "disabled"):
@@ -130,7 +138,7 @@ class PurgeConfirmView(discord.ui.View):
 
 @app_commands.guild_only()
 class Wishlist(commands.GroupCog, group_name="wishlist"):
-    def __init__(self, bot):
+    def __init__(self, bot: BallsDexBot) -> None:
         self.bot = bot
 
     @app_commands.command(name="view", description="View and manage your wishlist interactively.")

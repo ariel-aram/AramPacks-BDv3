@@ -1,5 +1,8 @@
+from __future__ import annotations
+
+import contextlib
 import time
-from typing import TYPE_CHECKING, Optional, cast
+from typing import TYPE_CHECKING, cast, override
 
 import discord
 from bd_models.models import BallInstance, Player
@@ -46,7 +49,7 @@ async def flex_autocomplete(interaction: discord.Interaction, current: str):
 
 
 class FlexDecisionModal(discord.ui.Modal):
-    def __init__(self, view: "FlexApprovalView", approve: bool):
+    def __init__(self, view: FlexApprovalView, approve: bool):
         super().__init__(title="Approve Flex" if approve else "Deny Flex")
         self.view_ref = view
         self.approve = approve
@@ -59,6 +62,7 @@ class FlexDecisionModal(discord.ui.Modal):
         )
         self.add_item(self.notes)
 
+    @override
     async def on_submit(self, interaction: discord.Interaction) -> None:
         await interaction.response.defer(ephemeral=True)
 
@@ -115,20 +119,18 @@ class FlexDecisionModal(discord.ui.Modal):
 
         self.view_ref.disable_all()
         if self.view_ref.message:
-            try:
+            with contextlib.suppress(Exception):
                 await self.view_ref.message.edit(view=self.view_ref)
-            except Exception:
-                pass
 
 
 class FlexApprovalView(discord.ui.View):
-    def __init__(self, bot, instance_id: int, owner_id: int, public_channel_id: int):
+    def __init__(self, bot: BallsDexBot, instance_id: int, owner_id: int, public_channel_id: int) -> None:
         super().__init__(timeout=None)
         self.bot = bot
         self.instance_id = instance_id
         self.owner_id = owner_id
         self.public_channel_id = public_channel_id
-        self.message: Optional[discord.Message] = None
+        self.message: discord.Message | None = None
 
     def disable_all(self) -> None:
         for child in self.children:
@@ -147,7 +149,7 @@ class FlexApprovalView(discord.ui.View):
 class Flex(commands.Cog):
     COOLDOWN_SECONDS = 86400
 
-    def __init__(self, bot: "BallsDexBot") -> None:
+    def __init__(self, bot: BallsDexBot) -> None:
         self.bot = bot
 
     @app_commands.command(name="flex", description="Submit one of your balls for moderator approval.")
@@ -219,12 +221,10 @@ class Flex(commands.Cog):
         msg = await mod_channel.send(embed=embed, file=file, view=view)
         view.message = msg
 
-        try:
+        with contextlib.suppress(Exception):
             await interaction.user.send(
                 f"\U0001f4e8 Your flex `#{instance.id:0X}` has been submitted for review!"  # type: ignore[attr-defined]
             )
-        except Exception:
-            pass
 
         flexdata.last_flex = now
         await flexdata.asave()

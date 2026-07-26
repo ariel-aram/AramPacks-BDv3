@@ -1,4 +1,6 @@
-from typing import TYPE_CHECKING
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, override
 
 import discord
 from bd_models.models import BallInstance, Special
@@ -10,7 +12,7 @@ if TYPE_CHECKING:
 
 
 class EventSelectView(discord.ui.View):
-    def __init__(self, specials: list[Special], bot: "BallsDexBot"):
+    def __init__(self, specials: list[Special], bot: BallsDexBot):
         super().__init__(timeout=120)
         self.specials = specials
         self.bot = bot
@@ -87,6 +89,7 @@ class EventSelectView(discord.ui.View):
         embed = await self._build_embed()
         await interaction.response.edit_message(embed=embed, view=self)
 
+    @override
     async def on_timeout(self) -> None:
         for child in self.children:
             if hasattr(child, "disabled"):
@@ -97,11 +100,11 @@ class EventSelectView(discord.ui.View):
 class Events(commands.Cog):
     """View information about special events with interactive browsing."""
 
-    def __init__(self, bot: "BallsDexBot"):
+    def __init__(self, bot: BallsDexBot):
         self.bot = bot
 
     @app_commands.command()
-    async def events(self, interaction: discord.Interaction["BallsDexBot"]):
+    async def events(self, interaction: discord.Interaction[BallsDexBot]):
         """Browse all special events with an interactive card viewer."""
         await interaction.response.defer(ephemeral=True)
 

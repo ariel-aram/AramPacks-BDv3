@@ -1,4 +1,6 @@
-from typing import TYPE_CHECKING, Optional
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, override
 
 import discord
 from asgiref.sync import sync_to_async
@@ -39,6 +41,7 @@ class MuseumPaginatorView(discord.ui.View):
         self._update_buttons()
         await interaction.response.edit_message(embed=self.embeds[self.current_page], view=self)
 
+    @override
     async def on_timeout(self) -> None:
         for child in self.children:
             if hasattr(child, "disabled"):
@@ -58,6 +61,7 @@ class MuseumEditModal(discord.ui.Modal):
         )
         self.add_item(self.card_input)
 
+    @override
     async def on_submit(self, interaction: discord.Interaction) -> None:
         await interaction.response.defer(ephemeral=True)
         raw = self.card_input.value.strip()
@@ -103,7 +107,7 @@ def set_museum_cards(user_id: int, cards: list[str]) -> None:
 class Museum(commands.Cog):
     """A cog for managing users' museum displays with interactive components."""
 
-    def __init__(self, bot: "BallsDexBot"):
+    def __init__(self, bot: BallsDexBot):
         self.bot = bot
 
     async def send_error(self, interaction: discord.Interaction, message: str):
@@ -112,7 +116,7 @@ class Museum(commands.Cog):
 
     @app_commands.command(name="museum_view", description="View someone's museum display with interactive pagination.")
     @app_commands.describe(user="The user whose museum you want to view.")
-    async def museum_view(self, interaction: discord.Interaction, user: Optional[discord.User] = None):
+    async def museum_view(self, interaction: discord.Interaction, user: discord.User | None = None):
         try:
             target: discord.User | discord.Member = user or interaction.user
             cards = await get_museum_cards(target.id)

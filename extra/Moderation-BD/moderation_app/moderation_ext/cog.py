@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import discord
 from discord import app_commands
@@ -9,6 +11,8 @@ from discord.utils import get
 from ..models import ModerationConfig, Warning
 
 if TYPE_CHECKING:
+    from collections.abc import AsyncIterator
+
     from ballsdex.core.bot import BallsDexBot
 
 log = logging.getLogger("moderation_app.moderation_ext")
@@ -21,7 +25,7 @@ class Moderation(commands.Cog):
 
     group = app_commands.Group(name="moderation", description="Moderation commands.")
 
-    def __init__(self, bot: "BallsDexBot"):
+    def __init__(self, bot: BallsDexBot):
         self.bot = bot
 
     def _has_higher_role(self, guild: discord.Guild, actor: discord.Member, target: discord.Member) -> bool:
@@ -29,7 +33,7 @@ class Moderation(commands.Cog):
 
     @staticmethod
     def _guild_member(
-        interaction: discord.Interaction["BallsDexBot"],
+        interaction: discord.Interaction[BallsDexBot],
     ) -> tuple[discord.Guild, discord.Member]:
         assert interaction.guild is not None
         assert isinstance(interaction.user, discord.Member)
@@ -38,7 +42,7 @@ class Moderation(commands.Cog):
     @group.command(name="kick", description="Kick a user from the server.")
     async def kick(
         self,
-        interaction: discord.Interaction["BallsDexBot"],
+        interaction: discord.Interaction[BallsDexBot],
         member: discord.Member,
         reason: str = "No reason provided.",
     ):
@@ -57,7 +61,7 @@ class Moderation(commands.Cog):
     @group.command(name="ban", description="Ban a user from the server.")
     async def ban(
         self,
-        interaction: discord.Interaction["BallsDexBot"],
+        interaction: discord.Interaction[BallsDexBot],
         member: discord.Member,
         reason: str = "No reason provided.",
     ):
@@ -74,7 +78,7 @@ class Moderation(commands.Cog):
         await interaction.response.send_message(f"{member.mention} was banned. Reason: {reason}")
 
     @group.command(name="unban", description="Unban a user by tag (e.g. Name#1234).")
-    async def unban(self, interaction: discord.Interaction["BallsDexBot"], user_tag: str):
+    async def unban(self, interaction: discord.Interaction[BallsDexBot], user_tag: str):
         guild, user = self._guild_member(interaction)
         if not user.guild_permissions.ban_members:
             return await interaction.response.send_message(
@@ -89,7 +93,7 @@ class Moderation(commands.Cog):
         await interaction.response.send_message("User not found in ban list.")
 
     @group.command(name="purge", description="Purge/Clear messages in the channel.")
-    async def purge(self, interaction: discord.Interaction["BallsDexBot"], amount: int = 5):
+    async def purge(self, interaction: discord.Interaction[BallsDexBot], amount: int = 5):
         _, user = self._guild_member(interaction)
         if not user.guild_permissions.manage_messages:
             return await interaction.response.send_message(
@@ -109,7 +113,7 @@ class Moderation(commands.Cog):
     @group.command(name="mute", description="Mute a user.")
     async def mute(
         self,
-        interaction: discord.Interaction["BallsDexBot"],
+        interaction: discord.Interaction[BallsDexBot],
         member: discord.Member,
         reason: str = "No reason provided.",
     ):
@@ -141,7 +145,7 @@ class Moderation(commands.Cog):
         await interaction.response.send_message(f"{member.mention} has been muted. Reason: {reason}")
 
     @group.command(name="unmute", description="Unmute a user.")
-    async def unmute(self, interaction: discord.Interaction["BallsDexBot"], member: discord.Member):
+    async def unmute(self, interaction: discord.Interaction[BallsDexBot], member: discord.Member):
         guild, user = self._guild_member(interaction)
         if not user.guild_permissions.manage_roles:
             return await interaction.response.send_message("You don't have permission to manage roles.", ephemeral=True)
@@ -162,7 +166,7 @@ class Moderation(commands.Cog):
             await interaction.response.send_message("User is not muted.")
 
     @group.command(name="setmutedrole", description="Set the role used for muting members.")
-    async def setmutedrole(self, interaction: discord.Interaction["BallsDexBot"], role: discord.Role):
+    async def setmutedrole(self, interaction: discord.Interaction[BallsDexBot], role: discord.Role):
         guild, user = self._guild_member(interaction)
         if not user.guild_permissions.manage_roles:
             return await interaction.response.send_message("You don't have permission to manage roles.", ephemeral=True)
@@ -175,7 +179,7 @@ class Moderation(commands.Cog):
     @group.command(name="warn", description="Warn a user.")
     async def warn(
         self,
-        interaction: discord.Interaction["BallsDexBot"],
+        interaction: discord.Interaction[BallsDexBot],
         member: discord.Member,
         reason: str = "No reason provided.",
     ):
@@ -197,7 +201,7 @@ class Moderation(commands.Cog):
         await interaction.response.send_message(f"{member.mention} has been warned. Reason: {reason}")
 
     @group.command(name="warnings", description="List warnings for a user.")
-    async def warnings(self, interaction: discord.Interaction["BallsDexBot"], member: discord.Member):
+    async def warnings(self, interaction: discord.Interaction[BallsDexBot], member: discord.Member):
         guild, _ = self._guild_member(interaction)
         warns = Warning.objects.filter(guild_id=guild.id, user_id=member.id)
         if await warns.aexists():
@@ -210,7 +214,7 @@ class Moderation(commands.Cog):
             await interaction.response.send_message(f"{member.mention} has no warnings.")
 
     @group.command(name="clearwarnings", description="Clear all warnings for a user.")
-    async def clearwarnings(self, interaction: discord.Interaction["BallsDexBot"], member: discord.Member):
+    async def clearwarnings(self, interaction: discord.Interaction[BallsDexBot], member: discord.Member):
         guild, user = self._guild_member(interaction)
         if not user.guild_permissions.manage_messages:
             return await interaction.response.send_message(
@@ -221,7 +225,7 @@ class Moderation(commands.Cog):
         await interaction.response.send_message(f"Cleared {deleted_count[0]} warning(s) for {member.mention}.")
 
     @group.command(name="slowmode", description="Set slowmode in this channel.")
-    async def slowmode(self, interaction: discord.Interaction["BallsDexBot"], seconds: int):
+    async def slowmode(self, interaction: discord.Interaction[BallsDexBot], seconds: int):
         _, user = self._guild_member(interaction)
         if not user.guild_permissions.manage_channels:
             return await interaction.response.send_message("You don't have permission to set slowmode.", ephemeral=True)
@@ -236,7 +240,7 @@ class Moderation(commands.Cog):
         await interaction.response.send_message(f"Slowmode set to {seconds} seconds.")
 
     @group.command(name="lock", description="Lock this channel.")
-    async def lock(self, interaction: discord.Interaction["BallsDexBot"]):
+    async def lock(self, interaction: discord.Interaction[BallsDexBot]):
         guild, user = self._guild_member(interaction)
         if not user.guild_permissions.manage_channels:
             return await interaction.response.send_message(
@@ -255,7 +259,7 @@ class Moderation(commands.Cog):
         await interaction.response.send_message("Channel locked.")
 
     @group.command(name="unlock", description="Unlock this channel.")
-    async def unlock(self, interaction: discord.Interaction["BallsDexBot"]):
+    async def unlock(self, interaction: discord.Interaction[BallsDexBot]):
         guild, user = self._guild_member(interaction)
         if not user.guild_permissions.manage_channels:
             return await interaction.response.send_message(
@@ -276,7 +280,7 @@ class Moderation(commands.Cog):
     @group.command(name="nickname", description="Change a user's nickname.")
     async def nickname(
         self,
-        interaction: discord.Interaction["BallsDexBot"],
+        interaction: discord.Interaction[BallsDexBot],
         member: discord.Member,
         nickname: str,
     ):
@@ -295,7 +299,11 @@ class Moderation(commands.Cog):
         await interaction.response.send_message(f"{member.mention}'s nickname changed to: {nickname}")
 
 
-async def enumerate_warns(queryset):
+async def enumerate_warns(queryset: Any) -> AsyncIterator[tuple[int, Warning]]:
+    counter = 1
+    async for w in queryset:
+        yield counter, w
+        counter += 1
     counter = 1
     async for w in queryset:
         yield counter, w

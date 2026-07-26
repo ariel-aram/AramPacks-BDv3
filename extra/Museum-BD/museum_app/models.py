@@ -1,3 +1,5 @@
+from typing import override
+
 from django.db import models
 
 
@@ -11,5 +13,6 @@ class MuseumCard(models.Model):
         unique_together = [("user_id", "position")]
         ordering = ["user_id", "position"]
 
+    @override
     def __str__(self):
         return f"MuseumCard(user={self.user_id}, pos={self.position})"

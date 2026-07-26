@@ -1,4 +1,5 @@
 from enum import IntEnum
+from typing import override
 
 from django.db import models
 
@@ -38,6 +39,7 @@ class AdventDayConfig(models.Model):
     class Meta:
         db_table = "adventdayconfig"
 
+    @override
     def __str__(self):
         return f"Day {self.day} ({self.label or 'No label'})"
 
@@ -51,5 +53,6 @@ class AdventClaim(models.Model):
         db_table = "adventclaim"
         unique_together = ("player", "day")
 
+    @override
     def __str__(self):
         return f"{self.player.id} claimed day {self.day}"

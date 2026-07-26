@@ -1,16 +1,18 @@
+from __future__ import annotations
+
 import logging
 import random
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 import discord
 from ballsdex.core.utils.buttons import ConfirmChoiceView
-from ballsdex.core.utils.transformers import BallInstanceTransformer
 from bd_models.models import Ball, BallInstance, Player, TradeObject
 from discord import app_commands
 from discord.ext import commands
 
 if TYPE_CHECKING:
     from ballsdex.core.bot import BallsDexBot
+    from ballsdex.core.utils.transformers import BallInstanceTransformer
 
 log = logging.getLogger("ballsdex.packages.exchange")
 
@@ -19,7 +21,7 @@ log = logging.getLogger("ballsdex.packages.exchange")
 class Exchange(commands.Cog):
     """Exchange one of your owned balls for a random new one."""
 
-    def __init__(self, bot):
+    def __init__(self, bot: BallsDexBot):
         self.bot = bot
         self.cooldowns = {}
 
@@ -27,7 +29,7 @@ class Exchange(commands.Cog):
     @app_commands.describe(countryball="Select a ball from your collection to exchange.")
     async def exchange(
         self,
-        interaction: discord.Interaction["BallsDexBot"],
+        interaction: discord.Interaction[BallsDexBot],
         countryball: app_commands.Transform[BallInstance, BallInstanceTransformer],
     ):
         user_id = interaction.user.id
@@ -38,10 +40,6 @@ class Exchange(commands.Cog):
             await interaction.response.send_message(f"\u23f3 You can exchange again in {remaining}s.", ephemeral=True)
             return
         self.cooldowns[user_id] = now
-
-        if not countryball:
-            await interaction.response.send_message("\u274c That ball could not be found.", ephemeral=True)
-            return
 
         player, _ = await Player.objects.aget_or_create(discord_id=user_id)
         chosen = await BallInstance.objects.filter(id=countryball.id, player=player).select_related("ball").afirst()  # type: ignore[attr-defined]
@@ -84,7 +82,7 @@ class Exchange(commands.Cog):
 
         old_name = getattr(chosen.ball, "country", getattr(chosen.ball, "name", "Unknown"))
         new_name = getattr(new_ball, "country", getattr(new_ball, "name", "Unknown"))
-        emoji = self.bot.get_emoji(getattr(new_ball, "emoji_id", None)) or "\U0001f3b2"
+        emoji = self.bot.get_emoji(cast("int", getattr(new_ball, "emoji_id", None))) or "\U0001f3b2"
 
         embed = discord.Embed(
             title="Exchange Complete!",

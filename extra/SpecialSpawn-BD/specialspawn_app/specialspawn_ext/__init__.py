@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import logging
 from typing import TYPE_CHECKING
 
@@ -9,7 +11,7 @@ if TYPE_CHECKING:
 log = logging.getLogger("specialspawn")
 
 
-async def setup(bot: "BallsDexBot"):
+async def setup(bot: BallsDexBot):
     cog = SpecialSpawnCog(bot)
     await bot.add_cog(cog)
     await cog.load_cache()

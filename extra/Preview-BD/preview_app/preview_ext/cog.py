@@ -1,4 +1,6 @@
-from typing import TYPE_CHECKING, Optional
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, override
 
 import discord
 from bd_models.models import BallInstance, Player, balls, specials
@@ -20,7 +22,7 @@ async def special_autocomplete(interaction: discord.Interaction, current: str):
 
 
 class PreviewVariantsView(discord.ui.View):
-    def __init__(self, ball_id: int, base_special_id: Optional[int]):
+    def __init__(self, ball_id: int, base_special_id: int | None):
         super().__init__(timeout=60)
         self.ball_id = ball_id
         self.base_special_id = base_special_id
@@ -44,7 +46,7 @@ class PreviewVariantsView(discord.ui.View):
         self.special_select.callback = self._on_special_select
         self.add_item(self.special_select)
 
-    async def _build_preview(self, interaction: discord.Interaction) -> tuple[discord.Embed, Optional[discord.File]]:
+    async def _build_preview(self, interaction: discord.Interaction) -> tuple[discord.Embed, discord.File | None]:
         selected_ball = balls.get(self.ball_id)
         if not selected_ball:
             return (
@@ -113,6 +115,7 @@ class PreviewVariantsView(discord.ui.View):
             kwargs["attachments"] = []
         await interaction.response.edit_message(**kwargs)
 
+    @override
     async def on_timeout(self) -> None:
         for child in self.children:
             if hasattr(child, "disabled"):
@@ -122,12 +125,12 @@ class PreviewVariantsView(discord.ui.View):
 class Preview(commands.Cog):
     """Preview card images with interactive special variant switching."""
 
-    def __init__(self, bot: "BallsDexBot"):
+    def __init__(self, bot: BallsDexBot):
         self.bot = bot
 
     @app_commands.command(name="preview", description="Preview a card image with interactive special variants.")
     @app_commands.autocomplete(ball=ball_autocomplete, special=special_autocomplete)
-    async def preview(self, interaction: discord.Interaction, ball: str, special: Optional[str] = None):
+    async def preview(self, interaction: discord.Interaction, ball: str, special: str | None = None):
         await interaction.response.defer(ephemeral=False)
 
         try:
@@ -140,7 +143,7 @@ class Preview(commands.Cog):
             await interaction.followup.send("Invalid ball selection.", ephemeral=True)
             return
 
-        base_special_id: Optional[int] = None
+        base_special_id: int | None = None
         if special:
             try:
                 special_id = int(special)

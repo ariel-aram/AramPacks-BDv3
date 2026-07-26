@@ -45,7 +45,7 @@ def load_font(field: Any, size: int, default_name: str) -> ImageFont.FreeTypeFon
     return ImageFont.truetype(str(bd_image_gen.SOURCES_PATH / default_name), size)
 
 
-def draw_card(ball_instance: "BallInstance") -> tuple[Image.Image, dict[str, Any]]:
+def draw_card(ball_instance: BallInstance) -> tuple[Image.Image, dict[str, Any]]:
     config = CardConfig.get_config()
     if config is None or not config.enabled:
         return original_draw_card(ball_instance)
@@ -178,13 +178,13 @@ def draw_card(ball_instance: "BallInstance") -> tuple[Image.Image, dict[str, Any
 
 
 def apply_patches() -> None:
-    setattr(bd_image_gen, "draw_card", draw_card)
+    bd_image_gen.draw_card = draw_card
 
-    from bd_models import models as bd_models
+    from bd_models import models as bd_models  # noqa: PLC0415
 
-    setattr(bd_models, "draw_card", draw_card)
+    bd_models.draw_card = draw_card
 
     for module_name in ("preview.views", "preview.management.commands.preview"):
         module = sys.modules.get(module_name)
         if module is not None and hasattr(module, "draw_card"):
-            setattr(module, "draw_card", draw_card)
+            module.draw_card = draw_card  # type: ignore[attr-defined]
