@@ -18,8 +18,8 @@ class CFCommands(commands.Cog):
             description=(
                 f"⋄ **Short Name:** {countryball.short_name}\n"
                 f"⋄ **Catch Names:** {countryball.catch_names}\n"
-                f"⋄ **Regime:** {countryball.regime}\n"
-                f"⋄ **Economy:** {countryball.economy}\n"
+                f"⋄ **Regime:** {countryball.cached_regime}\n"
+                f"⋄ **Economy:** {countryball.cached_economy}\n"
                 f"⋄ **Rarity:** {countryball.rarity}\n"
                 f"⋄ **Attack:** {countryball.attack}\n"
                 f"⋄ **Health:** {countryball.health}\n"
