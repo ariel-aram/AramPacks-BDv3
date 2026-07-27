@@ -7,7 +7,7 @@ import discord
 from ballsdex.core.discord import LayoutView
 from discord import app_commands
 from discord.ext import commands
-from discord.ui import ActionRow, Container
+from discord.ui import ActionRow, Container, TextDisplay
 
 if TYPE_CHECKING:
     from ballsdex.core.bot import BallsDexBot
@@ -42,21 +42,19 @@ CONFETTI_MOMENTS = [
     "\U0001faa9 Mirrorball mode: ON",
 ]
 
-COLORS = [
-    discord.Color.blurple(),
-    discord.Color.gold(),
-    discord.Color.green(),
-    discord.Color.magenta(),
-    discord.Color.orange(),
-]
-
 
 class RerollFortuneView(LayoutView):
     def __init__(self, share: bool):
         super().__init__(timeout=30)
         self.share = share
-        self.container = RerollFortuneContainer()
+        self.container = RerollFortuneContainer(
+            TextDisplay(self._format_fortune(random.choice(FORTUNES))),
+        )
         self.add_item(self.container)
+
+    @staticmethod
+    def _format_fortune(text: str) -> str:
+        return f"## \U0001f52e Your Fortune\n{text}\n\n*Take it with a grain of glitter \u2728*"
 
     async def on_timeout(self) -> None:  # type: ignore[override]
         for child in self.walk_children():
@@ -69,22 +67,27 @@ class RerollFortuneContainer(Container):
 
     @btn_row.button(label="\U0001f52e Another Fortune!", style=discord.ButtonStyle.primary)
     async def reroll(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+        parent = cast("RerollFortuneView", self.view)
         fortune_text = random.choice(FORTUNES)
-        embed = discord.Embed(
-            title="\U0001f52e Your Fortune",
-            description=fortune_text,
-            color=random.choice(COLORS),
-        )
-        embed.set_footer(text="Take it with a grain of glitter \u2728")
-        await interaction.response.edit_message(embed=embed, view=self.view)
+        for child in self.walk_children():
+            if isinstance(child, TextDisplay):
+                child.content = parent._format_fortune(fortune_text)
+        await interaction.response.edit_message(view=parent)
 
 
 class CheerAgainView(LayoutView):
     def __init__(self, target: discord.User | discord.Member):
         super().__init__(timeout=30)
         self.target = target
-        self.container = CheerAgainContainer()
+        cheer_text = random.choice(CHEERS)
+        content = f"## \U0001f4ab A Cheer Appears!\n{target.mention}, {cheer_text}\n\n*Spread the hype!*"
+        self.container = CheerAgainContainer(TextDisplay(content))
         self.add_item(self.container)
+
+    @staticmethod
+    def _format_cheer(target: discord.User | discord.Member) -> str:
+        cheer_text = random.choice(CHEERS)
+        return f"## \U0001f4ab A Cheer Appears!\n{target.mention}, {cheer_text}\n\n*Spread the hype!*"
 
     async def on_timeout(self) -> None:  # type: ignore[override]
         for child in self.walk_children():
@@ -98,22 +101,23 @@ class CheerAgainContainer(Container):
     @btn_row.button(label="\U0001f4a5 Cheer Again!", style=discord.ButtonStyle.primary)
     async def cheer_again(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
         parent = cast("CheerAgainView", self.view)
-        cheer_text = random.choice(CHEERS)
-        embed = discord.Embed(
-            title="\U0001f4ab A Cheer Appears!",
-            description=f"{parent.target.mention}, {cheer_text}",
-            color=random.choice(COLORS),
-        )
-        embed.set_thumbnail(url=getattr(parent.target.display_avatar, "url", None))
-        embed.set_footer(text="Spread the hype!")
-        await interaction.response.edit_message(embed=embed, view=self.view)
+        content = parent._format_cheer(parent.target)
+        for child in self.walk_children():
+            if isinstance(child, TextDisplay):
+                child.content = content
+        await interaction.response.edit_message(view=parent)
 
 
 class ConfettiButtonView(LayoutView):
     def __init__(self):
         super().__init__(timeout=30)
         self.count = 1
-        self.container = ConfettiButtonContainer()
+        moment = random.choice(CONFETTI_MOMENTS)
+        emoji = random.choice(
+            ["\U0001f389", "\U0001f38a", "\u2728", "\U0001f973", "\U0001faa9", "\u2b50", "\U0001f388"]
+        )
+        content = f"{moment}\n{emoji * 5}\n\n*Click the button for more confetti!*"
+        self.container = ConfettiButtonContainer(TextDisplay(content))
         self.add_item(self.container)
 
     async def on_timeout(self) -> None:  # type: ignore[override]
@@ -133,12 +137,11 @@ class ConfettiButtonContainer(Container):
         emoji = random.choice(
             ["\U0001f389", "\U0001f38a", "\u2728", "\U0001f973", "\U0001faa9", "\u2b50", "\U0001f388"]
         )
-        embed = discord.Embed(
-            description=f"{moment}\n{emoji * min(parent.count, 10)}",
-            color=random.choice(COLORS),
-        )
-        embed.set_footer(text=f"Confetti storms: {parent.count}")
-        await interaction.response.edit_message(embed=embed, view=parent)
+        content = f"{moment}\n{emoji * min(parent.count, 10)}\n\n*Confetti storms: {parent.count}*"
+        for child in self.walk_children():
+            if isinstance(child, TextDisplay):
+                child.content = content
+        await interaction.response.edit_message(view=parent)
 
 
 class Funhouse(commands.Cog):
@@ -151,46 +154,19 @@ class Funhouse(commands.Cog):
     @app_commands.describe(share="Share publicly instead of sending ephemerally.")
     @app_commands.guild_only()
     async def fortune(self, interaction: discord.Interaction, share: bool = False) -> None:
-        fortune_text = random.choice(FORTUNES)
-        embed = discord.Embed(
-            title="\U0001f52e Your Fortune",
-            description=fortune_text,
-            color=random.choice(COLORS),
-        )
-        embed.set_footer(text="Take it with a grain of glitter \u2728")
-
         view = RerollFortuneView(share=share)
-        await interaction.response.send_message(embed=embed, view=view, ephemeral=not share)  # type: ignore[arg-type]
+        await interaction.response.send_message(view=view, ephemeral=not share)
 
     @app_commands.command(name="cheer", description="Send an upbeat cheer with a reroll button.")
     @app_commands.describe(user="Who needs a pep talk? Leave blank for yourself.")
     @app_commands.guild_only()
     async def cheer(self, interaction: discord.Interaction, user: discord.User | None = None) -> None:
         target: discord.User | discord.Member = user or interaction.user
-        cheer_text = random.choice(CHEERS)
-        embed = discord.Embed(
-            title="\U0001f4ab A Cheer Appears!",
-            description=f"{target.mention}, {cheer_text}",
-            color=random.choice(COLORS),
-        )
-        embed.set_thumbnail(url=getattr(target.display_avatar, "url", None))
-        embed.set_footer(text="Spread the hype!")
-
         view = CheerAgainView(target=target)
-        await interaction.response.send_message(embed=embed, view=view)  # type: ignore[arg-type]
+        await interaction.response.send_message(view=view)
 
     @app_commands.command(name="confetti", description="Throw a celebration into the channel. Click for more!")
     @app_commands.guild_only()
     async def confetti(self, interaction: discord.Interaction) -> None:
-        moment = random.choice(CONFETTI_MOMENTS)
-        emoji = random.choice(
-            ["\U0001f389", "\U0001f38a", "\u2728", "\U0001f973", "\U0001faa9", "\u2b50", "\U0001f388"]
-        )
-        embed = discord.Embed(
-            description=f"{moment}\n{emoji * 5}",
-            color=random.choice(COLORS),
-        )
-        embed.set_footer(text="Click the button for more confetti!")
-
         view = ConfettiButtonView()
-        await interaction.response.send_message(embed=embed, view=view)  # type: ignore[arg-type]
+        await interaction.response.send_message(view=view)

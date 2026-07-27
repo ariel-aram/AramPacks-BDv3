@@ -11,13 +11,14 @@ from ballsdex.settings import settings
 from bd_models.models import Ball, BallInstance, BlacklistedID, Player
 from discord import app_commands
 from discord.ext import commands, tasks
-from discord.ui import ActionRow, Container
+from discord.ui import ActionRow, Container, TextDisplay
 
 if TYPE_CHECKING:
     from ballsdex.core.bot import BallsDexBot
 
 
 class SantaConfirmContainer(Container):
+    display = TextDisplay("")
     btn_row = ActionRow()
 
     @btn_row.button(label="\u2705 Deliver Gifts!", style=discord.ButtonStyle.green)
@@ -125,18 +126,15 @@ class SantaMail(commands.Cog):
 
         count_to_send = min(5, len(eligible))
 
-        embed = discord.Embed(
-            title="\U0001f384 Force Santa Delivery",
-            description=(
-                f"This will deliver **{count_to_send}** {settings.plural_collectible_name} "
-                f"to {count_to_send} random eligible players."
-            ),
-            color=discord.Color.red(),
+        content = (
+            "## \U0001f384 Force Santa Delivery\n"
+            f"This will deliver **{count_to_send}** {settings.plural_collectible_name} "
+            f"to {count_to_send} random eligible players.\n"
+            "*\u23f0 This confirmation expires in 30 seconds.*"
         )
-        embed.set_footer(text="\u23f0 This confirmation expires in 30 seconds.")
 
         view = SantaConfirmView()
-        await interaction.response.send_message(embed=embed, view=view, ephemeral=True)  # type: ignore[arg-type]
+        await interaction.response.send_message(content=content, view=view, ephemeral=True)  # type: ignore[arg-type]
         await view.wait()
 
         if view.value is None or view.value is False:

@@ -7,7 +7,7 @@ from ballsdex.core.discord import LayoutView
 from bd_models.models import BallInstance, Special
 from discord import app_commands
 from discord.ext import commands
-from discord.ui import ActionRow, Container, Select
+from discord.ui import ActionRow, Container, Select, TextDisplay
 
 if TYPE_CHECKING:
     from ballsdex.core.bot import BallsDexBot
@@ -22,25 +22,24 @@ class EventSelectView(LayoutView):
         self._cont = EventSelectContainer()
         self.add_item(self._cont)
         self._update_buttons()
+        self._update_display()
 
     def _get_current(self) -> Special:
         return self.specials[self.current_idx]
 
-    def _update_buttons(self) -> None:
-        self._cont.prev_btn.disabled = self.current_idx == 0
-        self._cont.next_btn.disabled = self.current_idx >= len(self.specials) - 1
-        if self.specials:
-            self._cont._select.options = [
-                discord.SelectOption(
-                    label=s.name[:100],
-                    value=str(i),
-                    description=f"Rarity: {s.rarity * 100:.1f}%",
-                    emoji="\U0001f4c5",
-                )
-                for i, s in enumerate(self.specials[:25])
-            ]
+    def _display_text(self) -> str:
+        special = self._get_current()
+        emoji_display = "\u2753"
+        if special.emoji:
+            try:
+                emoji_obj = self.bot.get_emoji(int(special.emoji))
+                emoji_display = str(emoji_obj) if emoji_obj else "\u2753"
+            except ValueError, TypeError:
+                emoji_display = special.emoji
 
-    async def _build_embed(self) -> discord.Embed:
+        return f"## {emoji_display} {special.name}\n**Event #{self.current_idx + 1}** of {len(self.specials)}"
+
+    async def _build_content(self) -> str:
         special = self._get_current()
         emoji_display = "\u2753"
         if special.emoji:
@@ -62,18 +61,44 @@ class EventSelectView(LayoutView):
 
         card_count = await BallInstance.objects.filter(special=special).acount()
 
-        embed = discord.Embed(
-            title=f"{emoji_display} {special.name}",
-            description=(
-                f"**Event #{self.current_idx + 1}** of {len(self.specials)}\n"
-                f"\U0001f4c5 {date_range}\n"
-                f"\U0001f3b0 Rarity: {rarity_str}\n"
-                f"\U0001f4e6 Caught: {card_count} times"
-            ),
-            color=discord.Color.blue(),
+        return (
+            f"## {emoji_display} {special.name}\n"
+            f"**Event #{self.current_idx + 1}** of {len(self.specials)}\n"
+            f"\U0001f4c5 {date_range}\n"
+            f"\U0001f3b0 Rarity: {rarity_str}\n"
+            f"\U0001f4e6 Caught: {card_count} times\n"
+            f"\nTotal events: {len(self.specials)}"
         )
-        embed.set_footer(text=f"Total events: {len(self.specials)}")
-        return embed
+
+    def _update_display(self) -> None:
+        special = self._get_current()
+        emoji_display = "\u2753"
+        if special.emoji:
+            try:
+                emoji_obj = self.bot.get_emoji(int(special.emoji))
+                emoji_display = str(emoji_obj) if emoji_obj else "\u2753"
+            except ValueError, TypeError:
+                emoji_display = special.emoji
+        self._cont.display.content = (
+            f"## {emoji_display} {special.name}\n**Event #{self.current_idx + 1}** of {len(self.specials)}"
+        )
+
+    async def _update_display_full(self) -> None:
+        self._cont.display.content = await self._build_content()
+
+    def _update_buttons(self) -> None:
+        self._cont.prev_btn.disabled = self.current_idx == 0
+        self._cont.next_btn.disabled = self.current_idx >= len(self.specials) - 1
+        if self.specials:
+            self._cont._select.options = [
+                discord.SelectOption(
+                    label=s.name[:100],
+                    value=str(i),
+                    description=f"Rarity: {s.rarity * 100:.1f}%",
+                    emoji="\U0001f4c5",
+                )
+                for i, s in enumerate(self.specials[:25])
+            ]
 
     async def on_timeout(self) -> None:  # type: ignore[override]
         for child in self.walk_children():
@@ -90,8 +115,8 @@ class EventSelectContainer(Container):
         assert parent is not None and isinstance(parent, EventSelectView)
         parent.current_idx -= 1
         parent._update_buttons()
-        embed = await parent._build_embed()
-        await interaction.response.edit_message(embed=embed, view=parent)
+        await parent._update_display_full()
+        await interaction.response.edit_message(view=parent)
 
     @nav_row.button(label="\u25b6\ufe0f", style=discord.ButtonStyle.secondary)
     async def next_btn(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
@@ -99,11 +124,14 @@ class EventSelectContainer(Container):
         assert parent is not None and isinstance(parent, EventSelectView)
         parent.current_idx += 1
         parent._update_buttons()
-        embed = await parent._build_embed()
-        await interaction.response.edit_message(embed=embed, view=parent)
+        await parent._update_display_full()
+        await interaction.response.edit_message(view=parent)
 
     def __init__(self):
         super().__init__()
+        self.display = TextDisplay("Loading...")
+        self.add_item(self.display)
+
         self._select = Select(placeholder="\U0001f4cb Jump to event...")
         self._select.callback = self._on_select
         select_row = ActionRow(self._select)
@@ -118,8 +146,8 @@ class EventSelectContainer(Container):
         except ValueError, IndexError:
             pass
         parent._update_buttons()
-        embed = await parent._build_embed()
-        await interaction.response.edit_message(embed=embed, view=parent)
+        await parent._update_display_full()
+        await interaction.response.edit_message(view=parent)
 
 
 @app_commands.guild_only()
@@ -141,5 +169,5 @@ class Events(commands.Cog):
             return
 
         view = EventSelectView(specials=specials, bot=self.bot)
-        embed = await view._build_embed()
-        await interaction.followup.send(embed=embed, view=view, ephemeral=True)  # type: ignore[arg-type]
+        await view._update_display_full()
+        await interaction.followup.send(view=view, ephemeral=True)

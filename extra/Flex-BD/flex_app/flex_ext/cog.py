@@ -231,7 +231,8 @@ class Flex(commands.Cog):
             owner_id=interaction.user.id,
             public_channel_id=CONFIG["public_flex_channel"],
         )
-        msg = await mod_channel.send(embed=embed, file=file, view=view)  # type: ignore[arg-type]
+        await mod_channel.send(embed=embed, file=file)
+        msg = await mod_channel.send(view=view)
         view.message = msg
 
         with contextlib.suppress(Exception):

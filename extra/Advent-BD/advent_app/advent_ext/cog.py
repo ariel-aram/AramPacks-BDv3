@@ -9,7 +9,7 @@ from ballsdex.core.discord import LayoutView
 from bd_models.models import Ball, BallInstance, Player, Special
 from discord import app_commands
 from discord.ext import commands
-from discord.ui import ActionRow, Button, Container
+from discord.ui import ActionRow, Button, Container, TextDisplay
 from django.utils import timezone
 
 from ..models import AdventClaim, AdventDayConfig, RewardType
@@ -70,6 +70,7 @@ class AdventCalendarView(LayoutView):
 
 
 class AdventCalendarContainer(Container):
+    display = TextDisplay("")
     row0 = ActionRow()
     row1 = ActionRow()
     row2 = ActionRow()
@@ -248,15 +249,12 @@ class AdventCalendar(commands.Cog):
             rows[(day - 1) // 5].add_item(btn)
 
         claimed_count = len(claimed_set)
-        embed = discord.Embed(
-            title=f"\U0001f4c5 Advent Calendar — {interaction.user.display_name}",
-            description=(
-                f"**{claimed_count} / {len(all_configs)}** days claimed\n"
-                "Click a day to see its reward!\n"
-                "\u2705 = Claimed | \U0001f4c5 = Today | \U0001f381 = Available | \u2b1b = Unconfigured"
-            ),
-            color=discord.Color.gold(),
+        view._cont.display.content = (
+            f"## \U0001f4c5 Advent Calendar — {interaction.user.display_name}\n"
+            f"**{claimed_count} / {len(all_configs)}** days claimed\n"
+            "Click a day to see its reward!\n"
+            "\u2705 = Claimed | \U0001f4c5 = Today | \U0001f381 = Available | \u2b1b = Unconfigured\n"
+            "\n*\U0001f381 Use /advent claim to claim today's reward!*"
         )
-        embed.set_footer(text="\U0001f381 Use /advent claim to claim today's reward!")
 
-        await interaction.response.send_message(embed=embed, view=view)  # type: ignore[arg-type]
+        await interaction.response.send_message(view=view)

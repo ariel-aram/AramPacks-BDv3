@@ -8,7 +8,7 @@ import discord
 from ballsdex.core.discord import LayoutView
 from discord import app_commands
 from discord.ext import commands
-from discord.ui import ActionRow, Container, Select
+from discord.ui import ActionRow, Container, Select, TextDisplay
 
 if TYPE_CHECKING:
     from ballsdex.core.bot import BallsDexBot
@@ -43,6 +43,15 @@ class ReindeerRaceView(LayoutView):
         ]
         self._cont._select.options = options
 
+        reindeer_lines = [f"{r['emoji']} **{r['name']}**" for r in REINDEER_DATA]
+        self._cont.display.content = (
+            "## \U0001f98c Reindeer Rush \U0001f3c1\n"
+            "A reindeer race is about to begin!\n\n"
+            + " | ".join(reindeer_lines)
+            + "\n\nUse the dropdown below to pick your reindeer, then press **Start Race**!"
+            f"\n\n*Hosted by {host.display_name}*"
+        )
+
     async def on_timeout(self) -> None:  # type: ignore[override]
         if not self.started:
             for child in self.walk_children():
@@ -58,11 +67,7 @@ class ReindeerRaceView(LayoutView):
         if message is None:
             return
 
-        embed = discord.Embed(
-            title="\U0001f3c6 Reindeer Rush \U0001f3c6",
-            description="The race has begun!",
-            color=0xE74C3C,
-        )
+        self._cont.display.content = "## \U0001f3c6 Reindeer Rush \U0001f3c6\nThe race has begun!"
 
         for _ in range(50):
             for name in reindeer_names:
@@ -74,26 +79,23 @@ class ReindeerRaceView(LayoutView):
                     finished.append(name)
 
             track = self._draw_track(positions)
-            embed.description = f"{track}\n\n"
+            desc = f"{track}\n\n"
             if finished:
                 winner = finished[0]
                 reindeer_info = next(r for r in REINDEER_DATA if r["name"] == winner)
                 rooters = self.rooters[winner]
+                desc += f"\U0001f389 **{reindeer_info['emoji']} {winner} wins!**\n"
                 if rooters:
                     mentions = ", ".join(f"<@{uid}>" for uid in rooters[:10])
-                    embed.description += f"\U0001f389 **{reindeer_info['emoji']} {winner} wins!**\n"
-                    embed.description += f"Rooters: {mentions}"
-                else:
-                    embed.description += f"\U0001f389 **{reindeer_info['emoji']} {winner} wins!**"
-                embed.color = reindeer_info["color"]
+                    desc += f"Rooters: {mentions}"
             else:
                 leader = max(positions, key=lambda n: positions[n])
                 reindeer_info = next(r for r in REINDEER_DATA if r["name"] == leader)
-                embed.description += f"In the lead: {reindeer_info['emoji']} **{leader}**"
-                embed.color = reindeer_info["color"]
+                desc += f"In the lead: {reindeer_info['emoji']} **{leader}**"
 
+            self._cont.display.content = f"## \U0001f3c6 Reindeer Rush \U0001f3c6\n{desc}"
             self.clear_items()
-            await message.edit(embed=embed, view=self)
+            await message.edit(view=self)
             if finished:
                 break
 
@@ -113,6 +115,7 @@ class ReindeerRaceView(LayoutView):
 
 
 class ReindeerRaceContainer(Container):
+    display = TextDisplay("")
     btn_row = ActionRow()
 
     def __init__(self):
@@ -161,17 +164,4 @@ class ReindeerRush(commands.Cog):
     @app_commands.guild_only()
     async def reindeerrush(self, interaction: discord.Interaction) -> None:
         view = ReindeerRaceView(host=interaction.user)
-
-        reindeer_lines = [f"{r['emoji']} **{r['name']}**" for r in REINDEER_DATA]
-        embed = discord.Embed(
-            title="\U0001f98c Reindeer Rush \U0001f3c1",
-            description=(
-                "A reindeer race is about to begin!\n\n"
-                + " | ".join(reindeer_lines)
-                + "\n\nUse the dropdown below to pick your reindeer, then press **Start Race**!"
-            ),
-            color=0xE74C3C,
-        )
-        embed.set_footer(text=f"Hosted by {interaction.user.display_name}")
-
-        await interaction.response.send_message(embed=embed, view=view)  # type: ignore[arg-type]
+        await interaction.response.send_message(view=view)

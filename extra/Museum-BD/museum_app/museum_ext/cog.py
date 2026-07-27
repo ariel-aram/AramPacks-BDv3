@@ -8,7 +8,7 @@ from ballsdex.core.discord import LayoutView
 from ballsdex.core.discord import Modal as BallsDexModal
 from discord import app_commands
 from discord.ext import commands
-from discord.ui import ActionRow, Container, TextInput
+from discord.ui import ActionRow, Container, TextDisplay, TextInput
 
 from ..models import MuseumCard
 
@@ -17,18 +17,31 @@ if TYPE_CHECKING:
 
 
 class MuseumPaginatorView(LayoutView):
-    def __init__(self, embeds: list[discord.Embed], timeout: int = 120):
+    def __init__(self, cards: list[str], target_name: str, timeout: int = 120):
         super().__init__(timeout=timeout)
-        self.embeds = embeds
+        self.cards = cards
+        self.target_name = target_name
         self.current_page = 0
         self._cont = MuseumPaginatorContainer()
         self.add_item(self._cont)
+        self._update_display()
         self._update_buttons()
 
     def _update_buttons(self) -> None:
         self._cont.prev_btn.disabled = self.current_page == 0
-        self._cont.next_btn.disabled = self.current_page >= len(self.embeds) - 1
-        self._cont.page_label.label = f"{self.current_page + 1} / {len(self.embeds)}"
+        self._cont.next_btn.disabled = self.current_page >= len(self.cards) - 1
+        self._cont.page_label.label = f"{self.current_page + 1} / {len(self.cards)}"
+
+    def _update_display(self) -> None:
+        card_id = self.cards[self.current_page]
+        content = (
+            f"## \U0001f3db\ufe0f {self.target_name}'s Museum \u2014 Card {self.current_page + 1}/{len(self.cards)}\n"
+            f"\U0001f5bc\ufe0f Displayed Card ID: `{card_id}`\n"
+            f"\n*Use the buttons below to navigate between cards.*"
+        )
+        for child in self._cont.walk_children():
+            if isinstance(child, TextDisplay):
+                child.content = content
 
     async def on_timeout(self) -> None:  # type: ignore[override]
         for child in self.walk_children():
@@ -37,15 +50,17 @@ class MuseumPaginatorView(LayoutView):
 
 
 class MuseumPaginatorContainer(Container):
+    display = TextDisplay("Loading...")
     btn_row = ActionRow()
 
     @btn_row.button(label="\u25c0\ufe0f", style=discord.ButtonStyle.secondary)
     async def prev_btn(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
         parent = self.view
         assert parent is not None and isinstance(parent, MuseumPaginatorView)
-        parent.current_page = (parent.current_page - 1) % len(parent.embeds)
+        parent.current_page = (parent.current_page - 1) % len(parent.cards)
         parent._update_buttons()
-        await interaction.response.edit_message(embed=parent.embeds[parent.current_page], view=parent)
+        parent._update_display()
+        await interaction.response.edit_message(view=parent)
 
     @btn_row.button(label="1 / 1", style=discord.ButtonStyle.gray, disabled=True)
     async def page_label(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
@@ -55,9 +70,10 @@ class MuseumPaginatorContainer(Container):
     async def next_btn(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
         parent = self.view
         assert parent is not None and isinstance(parent, MuseumPaginatorView)
-        parent.current_page = (parent.current_page + 1) % len(parent.embeds)
+        parent.current_page = (parent.current_page + 1) % len(parent.cards)
         parent._update_buttons()
-        await interaction.response.edit_message(embed=parent.embeds[parent.current_page], view=parent)
+        parent._update_display()
+        await interaction.response.edit_message(view=parent)
 
 
 class MuseumEditModal(BallsDexModal):
@@ -95,12 +111,10 @@ class MuseumEditModal(BallsDexModal):
                 return
 
         await set_museum_cards(interaction.user.id, cards)
-        embed = discord.Embed(
-            title="\u2705 Museum Updated",
-            description="Your museum now displays:\n" + "\n".join(f"- `{c}`" for c in cards),
-            colour=discord.Colour.green(),
+        await interaction.followup.send(
+            "\u2705 Museum Updated\nYour museum now displays:\n" + "\n".join(f"- `{c}`" for c in cards),
+            ephemeral=True,
         )
-        await interaction.followup.send(embed=embed, ephemeral=True)
 
 
 @sync_to_async
@@ -122,8 +136,7 @@ class Museum(commands.Cog):
         self.bot = bot
 
     async def send_error(self, interaction: discord.Interaction, message: str):
-        embed = discord.Embed(title="\u26a0\ufe0f Error", description=message, colour=discord.Colour.red())
-        await interaction.response.send_message(embed=embed, ephemeral=True)
+        await interaction.response.send_message(f"\u26a0\ufe0f Error\n{message}", ephemeral=True)
 
     @app_commands.command(name="museum_view", description="View someone's museum display with interactive pagination.")
     @app_commands.describe(user="The user whose museum you want to view.")
@@ -138,21 +151,11 @@ class Museum(commands.Cog):
                 )
                 return
 
-            embeds = []
-            for i, card_id in enumerate(cards, start=1):
-                embed = discord.Embed(
-                    title=f"\U0001f3db\ufe0f {target.display_name}'s Museum \u2014 Card {i}/{len(cards)}",
-                    description=f"\U0001f5bc\ufe0f Displayed Card ID: `{card_id}`",
-                    colour=discord.Colour.gold(),
-                )
-                embed.set_footer(text="Use the buttons below to navigate between cards.")
-                embeds.append(embed)
-
-            view = MuseumPaginatorView(embeds)
-            await interaction.response.send_message(embed=embeds[0], view=view)  # type: ignore[arg-type]
+            view = MuseumPaginatorView(cards=cards, target_name=target.display_name)
+            await interaction.response.send_message(view=view)
 
         except discord.Forbidden:
-            await self.send_error(interaction, "I don't have permission to send embeds or use components here.")
+            await self.send_error(interaction, "I don't have permission to use components here.")
         except discord.HTTPException as e:
             await self.send_error(interaction, f"Discord API error occurred: `{e}`")
         except Exception as e:

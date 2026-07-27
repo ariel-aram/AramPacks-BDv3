@@ -1,3 +1,4 @@
+
 import discord
 from ballsdex.core.bot import BallsDexBot  # noqa: TC002
 from ballsdex.core.discord import LayoutView
@@ -5,7 +6,7 @@ from ballsdex.core.utils.transformers import BallTransformer  # noqa: TC002
 from bd_models.models import Ball, BallInstance
 from discord import app_commands
 from discord.ext import commands
-from discord.ui import ActionRow, Button, Container, Select
+from discord.ui import ActionRow, Button, Container, Select, TextDisplay
 from django.core.exceptions import ObjectDoesNotExist
 
 from ..models import WishlistItem
@@ -26,37 +27,13 @@ class WishlistManageView(LayoutView):
             owned = (
                 await BallInstance.objects.filter(player__discord_id=self.user_id, ball=ball).acount() if ball else 0
             )
-            result.append(
-                {
-                    "country": ball.country if ball else item.ball_country,
-                    "owned": str(owned),
-                }
-            )
+            result.append({"country": ball.country if ball else item.ball_country, "owned": str(owned)})
         return result
 
-    async def _build_embed(self) -> discord.Embed:
-        data = await self._get_wishlist_data()
-        if not data:
-            embed = discord.Embed(
-                title="\U0001f381 Wishlist",
-                description="Your wishlist is empty.",
-                color=discord.Color.gold(),
-            )
-            return embed
+    def _build_content(self) -> str:
+        return "Loading..."  # replaced by _refresh_select
 
-        lines = []
-        for item in data:
-            lines.append(f"{item['country']} ({item['owned']} owned)")
-
-        embed = discord.Embed(
-            title="\U0001f381 Your Wishlist",
-            description="\n".join(lines),
-            color=discord.Color.gold(),
-        )
-        embed.set_footer(text=f"{len(data)} item(s) on your wishlist")
-        return embed
-
-    async def _refresh_select(self) -> discord.Embed:
+    async def _refresh_select(self) -> None:
         data = await self._get_wishlist_data()
         options = []
         for item in data:
@@ -70,8 +47,15 @@ class WishlistManageView(LayoutView):
             )
         if not options:
             options = [discord.SelectOption(label="No items in wishlist", value="_none", default=True)]
+            content = "## \U0001f381 Wishlist\nYour wishlist is empty."
+        else:
+            lines = [f"{item['country']} ({item['owned']} owned)" for item in data]
+            content = (
+                "## \U0001f381 Your Wishlist\n" + "\n".join(lines) + f"\n\n*{len(data)} item(s) on your wishlist*"
+            )
+
         self._cont.manage_select.options = options
-        return await self._build_embed()
+        self._cont.display.content = content
 
     async def on_timeout(self) -> None:  # type: ignore[override]
         for child in self.walk_children():
@@ -82,6 +66,9 @@ class WishlistManageView(LayoutView):
 class WishlistManageContainer(Container):
     def __init__(self):
         super().__init__()
+        self.display = TextDisplay("Loading...")
+        self.add_item(self.display)
+
         self.manage_select = Select(placeholder="\u2795 Manage wishlist...")
         self.manage_select.callback = self._on_select
         select_row = ActionRow(self.manage_select)
@@ -115,9 +102,9 @@ class WishlistManageContainer(Container):
             await interaction.response.send_message("Item not found in your wishlist.", ephemeral=True)
             return
 
-        embed = await parent._refresh_select()
-        embed.set_footer(text=f"\u2705 Removed {country} from your wishlist")
-        await interaction.response.edit_message(embed=embed, view=parent)
+        await parent._refresh_select()
+        self.display.content += f"\n\n\u2705 Removed {country} from your wishlist"
+        await interaction.response.edit_message(view=parent)
 
     async def _purge(self, interaction: discord.Interaction) -> None:
         parent = self.view
@@ -182,17 +169,12 @@ class Wishlist(commands.GroupCog, group_name="wishlist"):
                     await BallInstance.objects.filter(player__discord_id=target_id, ball=ball).acount() if ball else 0
                 )
                 lines.append(f"{ball.country if ball else item.ball_country} ({owned} owned)")
-            embed = discord.Embed(
-                title=f"{target.display_name}'s Wishlist",
-                description="\n".join(lines),
-                color=discord.Color.gold(),
-            )
-            await interaction.response.send_message(embed=embed)
+            await interaction.response.send_message(f"## {target.display_name}'s Wishlist\n" + "\n".join(lines))
             return
 
         view = WishlistManageView(user_id=interaction.user.id)
-        embed = await view._refresh_select()
-        await interaction.response.send_message(embed=embed, view=view, ephemeral=True)  # type: ignore[arg-type]
+        await view._refresh_select()
+        await interaction.response.send_message(view=view, ephemeral=True)
 
     @app_commands.command(name="add", description="Add a countryball to your wishlist.")
     async def add(self, interaction: discord.Interaction, countryball: app_commands.Transform[Ball, BallTransformer]):
