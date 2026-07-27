@@ -1,11 +1,13 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, override
+from typing import TYPE_CHECKING
 
 import discord
+from ballsdex.core.discord import LayoutView
 from bd_models.models import BallInstance, Player, balls, specials
 from discord import app_commands
 from discord.ext import commands
+from discord.ui import ActionRow, Container, Select
 
 if TYPE_CHECKING:
     from ballsdex.core.bot import BallsDexBot
@@ -21,30 +23,14 @@ async def special_autocomplete(interaction: discord.Interaction, current: str):
     return [app_commands.Choice(name=special.name, value=str(special.id)) for special in matching_specials[:25]]  # type: ignore[attr-defined]
 
 
-class PreviewVariantsView(discord.ui.View):
+class PreviewVariantsView(LayoutView):
     def __init__(self, ball_id: int, base_special_id: int | None):
         super().__init__(timeout=60)
         self.ball_id = ball_id
         self.base_special_id = base_special_id
         self.current_special_id = base_special_id
-
-        options = [discord.SelectOption(label="Default (no special)", value="none")]
-        for s in list(specials.values())[:24]:
-            options.append(
-                discord.SelectOption(
-                    label=s.name[:100],
-                    value=str(s.id),  # type: ignore[attr-defined]
-                    description=f"Rarity: {s.rarity * 100:.1f}%",
-                )
-            )
-
-        self.special_select = discord.ui.Select(
-            placeholder="Try a different special variant...",
-            options=options,
-            row=0,
-        )
-        self.special_select.callback = self._on_special_select
-        self.add_item(self.special_select)
+        self._cont = PreviewVariantsContainer(ball_id, base_special_id)
+        self.add_item(self._cont)
 
     async def _build_preview(self, interaction: discord.Interaction) -> tuple[discord.Embed, discord.File | None]:
         selected_ball = balls.get(self.ball_id)
@@ -100,26 +86,48 @@ class PreviewVariantsView(discord.ui.View):
 
         return embed, file
 
+    async def on_timeout(self) -> None:  # type: ignore[override]
+        for child in self.walk_children():
+            if hasattr(child, "disabled"):
+                child.disabled = True  # type: ignore[attr-defined]
+
+
+class PreviewVariantsContainer(Container):
+    def __init__(self, ball_id: int, base_special_id: int | None):
+        super().__init__()
+        options = [discord.SelectOption(label="Default (no special)", value="none")]
+        for s in list(specials.values())[:24]:
+            options.append(
+                discord.SelectOption(
+                    label=s.name[:100],
+                    value=str(s.id),  # type: ignore[attr-defined]
+                    description=f"Rarity: {s.rarity * 100:.1f}%",
+                )
+            )
+
+        self.special_select = Select(
+            placeholder="Try a different special variant...",
+            options=options,
+        )
+        self.special_select.callback = self._on_special_select
+        self.add_item(ActionRow(self.special_select))
+
     async def _on_special_select(self, interaction: discord.Interaction) -> None:
+        parent = self.view
+        assert parent is not None and isinstance(parent, PreviewVariantsView)
         value = self.special_select.values[0]
         if value == "none":
-            self.current_special_id = None
+            parent.current_special_id = None
         else:
-            self.current_special_id = int(value)
+            parent.current_special_id = int(value)
 
-        embed, file = await self._build_preview(interaction)
-        kwargs = {"embed": embed, "view": self}
+        embed, file = await parent._build_preview(interaction)
+        kwargs: dict = {"embed": embed, "view": parent}
         if file:
             kwargs["attachments"] = [file]
         else:
             kwargs["attachments"] = []
         await interaction.response.edit_message(**kwargs)
-
-    @override
-    async def on_timeout(self) -> None:
-        for child in self.children:
-            if hasattr(child, "disabled"):
-                child.disabled = True  # type: ignore[attr-defined]
 
 
 class Preview(commands.Cog):
@@ -159,7 +167,7 @@ class Preview(commands.Cog):
         view = PreviewVariantsView(ball_id=ball_id, base_special_id=base_special_id)
         embed, file = await view._build_preview(interaction)
 
-        kwargs = {"embed": embed, "view": view}
+        kwargs: dict = {"embed": embed, "view": view}
         if file:
             kwargs["file"] = file
         await interaction.followup.send(**kwargs, ephemeral=False)

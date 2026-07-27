@@ -1,32 +1,36 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, override
+from typing import TYPE_CHECKING
 
 import discord
+from ballsdex.core.discord import LayoutView
 from bd_models.models import BallInstance, Special
 from discord import app_commands
 from discord.ext import commands
+from discord.ui import ActionRow, Container, Select
 
 if TYPE_CHECKING:
     from ballsdex.core.bot import BallsDexBot
 
 
-class EventSelectView(discord.ui.View):
+class EventSelectView(LayoutView):
     def __init__(self, specials: list[Special], bot: BallsDexBot):
         super().__init__(timeout=120)
         self.specials = specials
         self.bot = bot
         self.current_idx = 0
+        self._cont = EventSelectContainer()
+        self.add_item(self._cont)
         self._update_buttons()
 
     def _get_current(self) -> Special:
         return self.specials[self.current_idx]
 
     def _update_buttons(self) -> None:
-        self.prev_btn.disabled = self.current_idx == 0
-        self.next_btn.disabled = self.current_idx >= len(self.specials) - 1
+        self._cont.prev_btn.disabled = self.current_idx == 0
+        self._cont.next_btn.disabled = self.current_idx >= len(self.specials) - 1
         if self.specials:
-            self.select_menu.options = [
+            self._cont._select.options = [
                 discord.SelectOption(
                     label=s.name[:100],
                     value=str(i),
@@ -71,29 +75,51 @@ class EventSelectView(discord.ui.View):
         embed.set_footer(text=f"Total events: {len(self.specials)}")
         return embed
 
-    @discord.ui.select(placeholder="\U0001f4cb Jump to event...", row=0)
-    async def select_menu(self, interaction: discord.Interaction, select: discord.ui.Select) -> None:
-        return
-
-    @discord.ui.button(label="\u25c0\ufe0f", style=discord.ButtonStyle.secondary, row=1)
-    async def prev_btn(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
-        self.current_idx -= 1
-        self._update_buttons()
-        embed = await self._build_embed()
-        await interaction.response.edit_message(embed=embed, view=self)
-
-    @discord.ui.button(label="\u25b6\ufe0f", style=discord.ButtonStyle.secondary, row=1)
-    async def next_btn(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
-        self.current_idx += 1
-        self._update_buttons()
-        embed = await self._build_embed()
-        await interaction.response.edit_message(embed=embed, view=self)
-
-    @override
-    async def on_timeout(self) -> None:
-        for child in self.children:
+    async def on_timeout(self) -> None:  # type: ignore[override]
+        for child in self.walk_children():
             if hasattr(child, "disabled"):
                 child.disabled = True  # type: ignore[attr-defined]
+
+
+class EventSelectContainer(Container):
+    nav_row = ActionRow()
+
+    @nav_row.button(label="\u25c0\ufe0f", style=discord.ButtonStyle.secondary)
+    async def prev_btn(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+        parent = self.view
+        assert parent is not None and isinstance(parent, EventSelectView)
+        parent.current_idx -= 1
+        parent._update_buttons()
+        embed = await parent._build_embed()
+        await interaction.response.edit_message(embed=embed, view=parent)
+
+    @nav_row.button(label="\u25b6\ufe0f", style=discord.ButtonStyle.secondary)
+    async def next_btn(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+        parent = self.view
+        assert parent is not None and isinstance(parent, EventSelectView)
+        parent.current_idx += 1
+        parent._update_buttons()
+        embed = await parent._build_embed()
+        await interaction.response.edit_message(embed=embed, view=parent)
+
+    def __init__(self):
+        super().__init__()
+        self._select = Select(placeholder="\U0001f4cb Jump to event...")
+        self._select.callback = self._on_select
+        select_row = ActionRow(self._select)
+        self.add_item(select_row)
+
+    async def _on_select(self, interaction: discord.Interaction) -> None:
+        parent = self.view
+        assert parent is not None and isinstance(parent, EventSelectView)
+        try:
+            idx = int(self._select.values[0])
+            parent.current_idx = idx
+        except ValueError, IndexError:
+            pass
+        parent._update_buttons()
+        embed = await parent._build_embed()
+        await interaction.response.edit_message(embed=embed, view=parent)
 
 
 @app_commands.guild_only()
@@ -116,4 +142,4 @@ class Events(commands.Cog):
 
         view = EventSelectView(specials=specials, bot=self.bot)
         embed = await view._build_embed()
-        await interaction.followup.send(embed=embed, view=view, ephemeral=True)
+        await interaction.followup.send(embed=embed, view=view, ephemeral=True)  # type: ignore[arg-type]

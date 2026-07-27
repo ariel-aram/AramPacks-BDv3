@@ -2,11 +2,13 @@ from __future__ import annotations
 
 import asyncio
 import random
-from typing import TYPE_CHECKING, override
+from typing import TYPE_CHECKING
 
 import discord
+from ballsdex.core.discord import LayoutView
 from discord import app_commands
 from discord.ext import commands
+from discord.ui import ActionRow, Container, Select
 
 if TYPE_CHECKING:
     from ballsdex.core.bot import BallsDexBot
@@ -26,56 +28,26 @@ TRACK_LENGTH = 15
 TICK_SPEED = 0.8
 
 
-class ReindeerRaceView(discord.ui.View):
+class ReindeerRaceView(LayoutView):
     def __init__(self, host: discord.User | discord.Member):
         super().__init__(timeout=60)
         self.host_id = host.id
         self.started = False
         self.rooters: dict[str, list[int]] = {r["name"]: [] for r in REINDEER_DATA}
+        self._cont = ReindeerRaceContainer()
+        self.add_item(self._cont)
 
         options = [
             discord.SelectOption(label=r["name"], emoji=r["emoji"], description=f"Root for {r['name']}!")
             for r in REINDEER_DATA
         ]
-        self.select_reindeer = discord.ui.Select(
-            placeholder="Pick a reindeer to root for!",
-            options=options,
-        )
-        self.select_reindeer.callback = self._on_select
-        self.add_item(self.select_reindeer)
+        self._cont._select.options = options
 
-    async def _on_select(self, interaction: discord.Interaction) -> None:
-        if self.started:
-            await interaction.response.send_message("The race has already started!", ephemeral=True)
-            return
-        chosen = self.select_reindeer.values[0]
-        for _name, users in self.rooters.items():
-            if interaction.user.id in users:
-                users.remove(interaction.user.id)
-        self.rooters[chosen].append(interaction.user.id)
-        await interaction.response.send_message(f"You're rooting for **{chosen}**! \U0001f3c6", ephemeral=True)
-
-    @discord.ui.button(label="\U0001f3c1 Start Race!", style=discord.ButtonStyle.green)
-    async def start_button(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
-        if interaction.user.id != self.host_id:
-            await interaction.response.send_message("Only the race host can start the race!", ephemeral=True)
-            return
-        if self.started:
-            await interaction.response.send_message("The race is already running!", ephemeral=True)
-            return
-        self.started = True
-        await interaction.response.defer()
-        await self._run_race(interaction)
-
-    async def _draw_track(self, positions: dict[str, int]) -> str:
-        lines: list[str] = []
-        for reindeer in REINDEER_DATA:
-            name = reindeer["name"]
-            pos = positions[name]
-            filled = TRACK_TILE * min(pos, TRACK_LENGTH)
-            empty = EMPTY_TILE * max(0, TRACK_LENGTH - pos)
-            lines.append(f"{reindeer['emoji']}  {filled}{empty}  {FINISH_EMOJI}")
-        return "\n".join(lines)
+    async def on_timeout(self) -> None:  # type: ignore[override]
+        if not self.started:
+            for child in self.walk_children():
+                if hasattr(child, "disabled"):
+                    child.disabled = True  # type: ignore[attr-defined]
 
     async def _run_race(self, interaction: discord.Interaction) -> None:
         reindeer_names = [r["name"] for r in REINDEER_DATA]
@@ -101,7 +73,7 @@ class ReindeerRaceView(discord.ui.View):
                 if positions[name] >= TRACK_LENGTH and name not in finished:
                     finished.append(name)
 
-            track = await self._draw_track(positions)
+            track = self._draw_track(positions)
             embed.description = f"{track}\n\n"
             if finished:
                 winner = finished[0]
@@ -129,17 +101,52 @@ class ReindeerRaceView(discord.ui.View):
 
         self.stop()
 
-    @override
-    async def on_timeout(self) -> None:
-        if not self.started:
-            self.clear_items()
-            self.add_item(
-                discord.ui.Button(
-                    label="Race expired",
-                    style=discord.ButtonStyle.secondary,
-                    disabled=True,
-                )
-            )
+    def _draw_track(self, positions: dict[str, int]) -> str:
+        lines: list[str] = []
+        for reindeer in REINDEER_DATA:
+            name = reindeer["name"]
+            pos = positions[name]
+            filled = TRACK_TILE * min(pos, TRACK_LENGTH)
+            empty = EMPTY_TILE * max(0, TRACK_LENGTH - pos)
+            lines.append(f"{reindeer['emoji']}  {filled}{empty}  {FINISH_EMOJI}")
+        return "\n".join(lines)
+
+
+class ReindeerRaceContainer(Container):
+    btn_row = ActionRow()
+
+    def __init__(self):
+        super().__init__()
+        self._select = Select(placeholder="Pick a reindeer to root for!")
+        self._select.callback = self._on_select
+        self.add_item(ActionRow(self._select))
+
+    async def _on_select(self, interaction: discord.Interaction) -> None:
+        parent = self.view
+        assert parent is not None and isinstance(parent, ReindeerRaceView)
+        if parent.started:
+            await interaction.response.send_message("The race has already started!", ephemeral=True)
+            return
+        chosen = self._select.values[0]
+        for _name, users in parent.rooters.items():
+            if interaction.user.id in users:
+                users.remove(interaction.user.id)
+        parent.rooters[chosen].append(interaction.user.id)
+        await interaction.response.send_message(f"You're rooting for **{chosen}**! \U0001f3c6", ephemeral=True)
+
+    @btn_row.button(label="\U0001f3c1 Start Race!", style=discord.ButtonStyle.green)
+    async def start_button(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+        parent = self.view
+        assert parent is not None and isinstance(parent, ReindeerRaceView)
+        if interaction.user.id != parent.host_id:
+            await interaction.response.send_message("Only the race host can start the race!", ephemeral=True)
+            return
+        if parent.started:
+            await interaction.response.send_message("The race is already running!", ephemeral=True)
+            return
+        parent.started = True
+        await interaction.response.defer()
+        await parent._run_race(interaction)
 
 
 class ReindeerRush(commands.Cog):
@@ -167,4 +174,4 @@ class ReindeerRush(commands.Cog):
         )
         embed.set_footer(text=f"Hosted by {interaction.user.display_name}")
 
-        await interaction.response.send_message(embed=embed, view=view)
+        await interaction.response.send_message(embed=embed, view=view)  # type: ignore[arg-type]

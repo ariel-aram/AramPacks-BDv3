@@ -5,9 +5,12 @@ import time
 from typing import TYPE_CHECKING, cast, override
 
 import discord
+from ballsdex.core.discord import LayoutView
+from ballsdex.core.discord import Modal as BallsDexModal
 from bd_models.models import BallInstance, Player
 from discord import app_commands
 from discord.ext import commands
+from discord.ui import ActionRow, Container, TextInput
 
 from ..models import FlexData
 
@@ -48,13 +51,13 @@ async def flex_autocomplete(interaction: discord.Interaction, current: str):
     return choices
 
 
-class FlexDecisionModal(discord.ui.Modal):
+class FlexDecisionModal(BallsDexModal):
     def __init__(self, view: FlexApprovalView, approve: bool):
         super().__init__(title="Approve Flex" if approve else "Deny Flex")
         self.view_ref = view
         self.approve = approve
 
-        self.notes = discord.ui.TextInput(
+        self.notes = TextInput(
             label="Moderator note (optional)",
             style=discord.TextStyle.paragraph,
             required=False,
@@ -123,7 +126,7 @@ class FlexDecisionModal(discord.ui.Modal):
                 await self.view_ref.message.edit(view=self.view_ref)
 
 
-class FlexApprovalView(discord.ui.View):
+class FlexApprovalView(LayoutView):
     def __init__(self, bot: BallsDexBot, instance_id: int, owner_id: int, public_channel_id: int) -> None:
         super().__init__(timeout=None)
         self.bot = bot
@@ -131,19 +134,29 @@ class FlexApprovalView(discord.ui.View):
         self.owner_id = owner_id
         self.public_channel_id = public_channel_id
         self.message: discord.Message | None = None
+        self._cont = FlexApprovalContainer()
+        self.add_item(self._cont)
 
     def disable_all(self) -> None:
-        for child in self.children:
+        for child in self.walk_children():
             if hasattr(child, "disabled"):
                 child.disabled = True  # type: ignore[attr-defined]
 
-    @discord.ui.button(label="\u2705 Approve", style=discord.ButtonStyle.green)
-    async def approve_btn(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
-        await interaction.response.send_modal(FlexDecisionModal(self, approve=True))
 
-    @discord.ui.button(label="\u274c Deny", style=discord.ButtonStyle.red)
+class FlexApprovalContainer(Container):
+    btn_row = ActionRow()
+
+    @btn_row.button(label="\u2705 Approve", style=discord.ButtonStyle.green)
+    async def approve_btn(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+        parent = self.view
+        assert parent is not None and isinstance(parent, FlexApprovalView)
+        await interaction.response.send_modal(FlexDecisionModal(parent, approve=True))
+
+    @btn_row.button(label="\u274c Deny", style=discord.ButtonStyle.red)
     async def deny_btn(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
-        await interaction.response.send_modal(FlexDecisionModal(self, approve=False))
+        parent = self.view
+        assert parent is not None and isinstance(parent, FlexApprovalView)
+        await interaction.response.send_modal(FlexDecisionModal(parent, approve=False))
 
 
 class Flex(commands.Cog):
@@ -218,7 +231,7 @@ class Flex(commands.Cog):
             owner_id=interaction.user.id,
             public_channel_id=CONFIG["public_flex_channel"],
         )
-        msg = await mod_channel.send(embed=embed, file=file, view=view)
+        msg = await mod_channel.send(embed=embed, file=file, view=view)  # type: ignore[arg-type]
         view.message = msg
 
         with contextlib.suppress(Exception):

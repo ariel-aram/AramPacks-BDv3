@@ -2,12 +2,14 @@ from __future__ import annotations
 
 import logging
 import random
-from typing import TYPE_CHECKING, override
+from typing import TYPE_CHECKING
 
 import discord
+from ballsdex.core.discord import LayoutView
 from bd_models.models import Ball, BallInstance, Player, Special
 from discord import app_commands
 from discord.ext import commands
+from discord.ui import ActionRow, Button, Container
 from django.utils import timezone
 
 from ..models import AdventClaim, AdventDayConfig, RewardType
@@ -20,41 +22,12 @@ log = logging.getLogger("advent_app.advent_ext")
 CALENDAR_DAYS = 25
 
 
-class CalendarDayButton(discord.ui.Button["AdventCalendarView"]):
-    def __init__(self, day: int, claimed: bool, configured: bool, is_today: bool):
-        if claimed:
-            label = f"{day}"
-            style = discord.ButtonStyle.green
-            emoji = "\u2705"
-        elif is_today:
-            label = f"{day}"
-            style = discord.ButtonStyle.primary
-            emoji = "\U0001f4c5"
-        elif configured:
-            label = f"{day}"
-            style = discord.ButtonStyle.secondary
-            emoji = "\U0001f381"
-        else:
-            label = f"{day}"
-            style = discord.ButtonStyle.gray
-            emoji = "\u2b1b"
-
-        super().__init__(label=label, emoji=emoji, style=style, row=(day - 1) // 5)
-        self.day = day
-        self.claimed = claimed
-
-    @override
-    async def callback(self, interaction: discord.Interaction) -> None:
-        view = self.view
-        if view is None:
-            return
-        await view.show_day_detail(interaction, self.day)
-
-
-class AdventCalendarView(discord.ui.View):
+class AdventCalendarView(LayoutView):
     def __init__(self, player_id: int):
         super().__init__(timeout=120)
         self.player_id = player_id
+        self._cont = AdventCalendarContainer()
+        self.add_item(self._cont)
 
     async def show_day_detail(self, interaction: discord.Interaction, day: int) -> None:
         config = await AdventDayConfig.objects.filter(day=day).select_related("ball", "special").afirst()
@@ -89,6 +62,27 @@ class AdventCalendarView(discord.ui.View):
         embed.set_footer(text="\u2705 Claimed!" if claimed else "\u23f0 Not yet claimed — use /advent claim")
 
         await interaction.response.send_message(embed=embed, ephemeral=True)
+
+    async def on_timeout(self) -> None:  # type: ignore[override]
+        for child in self.walk_children():
+            if hasattr(child, "disabled"):
+                child.disabled = True  # type: ignore[attr-defined]
+
+
+class AdventCalendarContainer(Container):
+    row0 = ActionRow()
+    row1 = ActionRow()
+    row2 = ActionRow()
+    row3 = ActionRow()
+    row4 = ActionRow()
+
+    def __init__(self):
+        super().__init__()
+        self.add_item(self.row0)
+        self.add_item(self.row1)
+        self.add_item(self.row2)
+        self.add_item(self.row3)
+        self.add_item(self.row4)
 
 
 class AdventCalendar(commands.Cog):
@@ -220,11 +214,38 @@ class AdventCalendar(commands.Cog):
 
         view = AdventCalendarView(player_id=user_id if player else 0)
 
+        rows = [
+            view._cont.row0,
+            view._cont.row1,
+            view._cont.row2,
+            view._cont.row3,
+            view._cont.row4,
+        ]
         for day in range(1, CALENDAR_DAYS + 1):
             claimed = day in claimed_set
             configured = day in all_configs
             is_today = day == today
-            view.add_item(CalendarDayButton(day, claimed, configured, is_today))
+
+            if claimed:
+                label = f"{day}"
+                style = discord.ButtonStyle.green
+                emoji = "\u2705"
+            elif is_today:
+                label = f"{day}"
+                style = discord.ButtonStyle.primary
+                emoji = "\U0001f4c5"
+            elif configured:
+                label = f"{day}"
+                style = discord.ButtonStyle.secondary
+                emoji = "\U0001f381"
+            else:
+                label = f"{day}"
+                style = discord.ButtonStyle.gray
+                emoji = "\u2b1b"
+
+            btn = Button(label=label, emoji=emoji, style=style)
+            btn.callback = lambda interaction, d=day: view.show_day_detail(interaction, d)
+            rows[(day - 1) // 5].add_item(btn)
 
         claimed_count = len(claimed_set)
         embed = discord.Embed(
@@ -238,4 +259,4 @@ class AdventCalendar(commands.Cog):
         )
         embed.set_footer(text="\U0001f381 Use /advent claim to claim today's reward!")
 
-        await interaction.response.send_message(embed=embed, view=view)
+        await interaction.response.send_message(embed=embed, view=view)  # type: ignore[arg-type]

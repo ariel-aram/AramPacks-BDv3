@@ -1,20 +1,22 @@
-from typing import override
-
 import discord
 from ballsdex.core.bot import BallsDexBot  # noqa: TC002
+from ballsdex.core.discord import LayoutView
 from ballsdex.core.utils.transformers import BallTransformer  # noqa: TC002
 from bd_models.models import Ball, BallInstance
 from discord import app_commands
 from discord.ext import commands
+from discord.ui import ActionRow, Button, Container, Select
 from django.core.exceptions import ObjectDoesNotExist
 
 from ..models import WishlistItem
 
 
-class WishlistManageView(discord.ui.View):
+class WishlistManageView(LayoutView):
     def __init__(self, user_id: int):
         super().__init__(timeout=60)
         self.user_id = user_id
+        self._cont = WishlistManageContainer()
+        self.add_item(self._cont)
 
     async def _get_wishlist_data(self) -> list[dict[str, str]]:
         items = [item async for item in WishlistItem.objects.filter(user_id=self.user_id)]
@@ -54,10 +56,6 @@ class WishlistManageView(discord.ui.View):
         embed.set_footer(text=f"{len(data)} item(s) on your wishlist")
         return embed
 
-    @discord.ui.select(placeholder="\u2795 Manage wishlist...")
-    async def manage_select(self, interaction: discord.Interaction, select: discord.ui.Select) -> None:
-        return
-
     async def _refresh_select(self) -> discord.Embed:
         data = await self._get_wishlist_data()
         options = []
@@ -72,11 +70,38 @@ class WishlistManageView(discord.ui.View):
             )
         if not options:
             options = [discord.SelectOption(label="No items in wishlist", value="_none", default=True)]
-        self.manage_select.options = options
+        self._cont.manage_select.options = options
         return await self._build_embed()
 
-    @discord.ui.button(label="\U0001f5d1\ufe0f Remove Selected", style=discord.ButtonStyle.danger, row=1)
-    async def remove_btn(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+    async def on_timeout(self) -> None:  # type: ignore[override]
+        for child in self.walk_children():
+            if hasattr(child, "disabled"):
+                child.disabled = True  # type: ignore[attr-defined]
+
+
+class WishlistManageContainer(Container):
+    def __init__(self):
+        super().__init__()
+        self.manage_select = Select(placeholder="\u2795 Manage wishlist...")
+        self.manage_select.callback = self._on_select
+        select_row = ActionRow(self.manage_select)
+        self.add_item(select_row)
+
+        self.btn_row = ActionRow()
+        self.remove_btn = Button(label="\U0001f5d1\ufe0f Remove Selected", style=discord.ButtonStyle.danger)
+        self.remove_btn.callback = self._remove
+        self.purge_btn = Button(label="\u274c Purge All", style=discord.ButtonStyle.secondary)
+        self.purge_btn.callback = self._purge
+        self.btn_row.add_item(self.remove_btn)
+        self.btn_row.add_item(self.purge_btn)
+        self.add_item(self.btn_row)
+
+    async def _on_select(self, interaction: discord.Interaction) -> None:
+        pass
+
+    async def _remove(self, interaction: discord.Interaction) -> None:
+        parent = self.view
+        assert parent is not None and isinstance(parent, WishlistManageView)
         values = self.manage_select.values
         if not values or values[0] == "_none":
             await interaction.response.send_message("Select an item to remove first.", ephemeral=True)
@@ -84,50 +109,53 @@ class WishlistManageView(discord.ui.View):
 
         country = values[0]
         try:
-            item = await WishlistItem.objects.aget(user_id=self.user_id, ball_country=country)
+            item = await WishlistItem.objects.aget(user_id=parent.user_id, ball_country=country)
             await item.adelete()
         except ObjectDoesNotExist:
             await interaction.response.send_message("Item not found in your wishlist.", ephemeral=True)
             return
 
-        embed = await self._refresh_select()
+        embed = await parent._refresh_select()
         embed.set_footer(text=f"\u2705 Removed {country} from your wishlist")
-        await interaction.response.edit_message(embed=embed, view=self)
+        await interaction.response.edit_message(embed=embed, view=parent)
 
-    @discord.ui.button(label="\u274c Purge All", style=discord.ButtonStyle.secondary, row=1)
-    async def purge_btn(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
-        items = WishlistItem.objects.filter(user_id=self.user_id)
+    async def _purge(self, interaction: discord.Interaction) -> None:
+        parent = self.view
+        assert parent is not None and isinstance(parent, WishlistManageView)
+        items = WishlistItem.objects.filter(user_id=parent.user_id)
         count = await items.acount()
         if count == 0:
             await interaction.response.send_message("Your wishlist is already empty.", ephemeral=True)
             return
 
-        confirm_view = PurgeConfirmView(self)
+        confirm_view = PurgeConfirmView(parent)
         await interaction.response.send_message(
             f"Delete all **{count}** items from your wishlist?",
-            view=confirm_view,
+            view=confirm_view,  # type: ignore[arg-type]
             ephemeral=True,
         )
 
-    @override
-    async def on_timeout(self) -> None:
-        for child in self.children:
-            if hasattr(child, "disabled"):
-                child.disabled = True  # type: ignore[attr-defined]
 
-
-class PurgeConfirmView(discord.ui.View):
+class PurgeConfirmView(LayoutView):
     def __init__(self, parent: WishlistManageView):
         super().__init__(timeout=15)
         self.parent = parent
+        self._cont = PurgeConfirmContainer()
+        self.add_item(self._cont)
 
-    @discord.ui.button(label="\u2705 Yes, Purge All", style=discord.ButtonStyle.danger)
+
+class PurgeConfirmContainer(Container):
+    btn_row = ActionRow()
+
+    @btn_row.button(label="\u2705 Yes, Purge All", style=discord.ButtonStyle.danger)
     async def confirm(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
-        items = WishlistItem.objects.filter(user_id=self.parent.user_id)
+        parent = self.view
+        assert parent is not None and isinstance(parent, PurgeConfirmView)
+        items = WishlistItem.objects.filter(user_id=parent.parent.user_id)
         await items.adelete()
         await interaction.response.edit_message(content="\u2705 Wishlist cleared.", view=None)
 
-    @discord.ui.button(label="\u274c Cancel", style=discord.ButtonStyle.secondary)
+    @btn_row.button(label="\u274c Cancel", style=discord.ButtonStyle.secondary)
     async def cancel(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
         await interaction.response.edit_message(content="Purge cancelled.", view=None)
 
@@ -164,7 +192,7 @@ class Wishlist(commands.GroupCog, group_name="wishlist"):
 
         view = WishlistManageView(user_id=interaction.user.id)
         embed = await view._refresh_select()
-        await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+        await interaction.response.send_message(embed=embed, view=view, ephemeral=True)  # type: ignore[arg-type]
 
     @app_commands.command(name="add", description="Add a countryball to your wishlist.")
     async def add(self, interaction: discord.Interaction, countryball: app_commands.Transform[Ball, BallTransformer]):
@@ -210,6 +238,6 @@ class Wishlist(commands.GroupCog, group_name="wishlist"):
         confirm_view = PurgeConfirmView(WishlistManageView(user_id=interaction.user.id))
         await interaction.response.send_message(
             f"Delete all **{count}** items from your wishlist? This cannot be undone.",
-            view=confirm_view,
+            view=confirm_view,  # type: ignore[arg-type]
             ephemeral=True,
         )

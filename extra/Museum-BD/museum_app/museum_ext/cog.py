@@ -1,11 +1,14 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, override
+from typing import TYPE_CHECKING
 
 import discord
 from asgiref.sync import sync_to_async
+from ballsdex.core.discord import LayoutView
+from ballsdex.core.discord import Modal as BallsDexModal
 from discord import app_commands
 from discord.ext import commands
+from discord.ui import ActionRow, Container, TextInput
 
 from ..models import MuseumCard
 
@@ -13,45 +16,54 @@ if TYPE_CHECKING:
     from ballsdex.core.bot import BallsDexBot
 
 
-class MuseumPaginatorView(discord.ui.View):
+class MuseumPaginatorView(LayoutView):
     def __init__(self, embeds: list[discord.Embed], timeout: int = 120):
         super().__init__(timeout=timeout)
         self.embeds = embeds
         self.current_page = 0
+        self._cont = MuseumPaginatorContainer()
+        self.add_item(self._cont)
         self._update_buttons()
 
     def _update_buttons(self) -> None:
-        self.prev_btn.disabled = self.current_page == 0
-        self.next_btn.disabled = self.current_page >= len(self.embeds) - 1
-        self.page_label.label = f"{self.current_page + 1} / {len(self.embeds)}"
+        self._cont.prev_btn.disabled = self.current_page == 0
+        self._cont.next_btn.disabled = self.current_page >= len(self.embeds) - 1
+        self._cont.page_label.label = f"{self.current_page + 1} / {len(self.embeds)}"
 
-    @discord.ui.button(label="\u25c0\ufe0f", style=discord.ButtonStyle.secondary)
-    async def prev_btn(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
-        self.current_page = (self.current_page - 1) % len(self.embeds)
-        self._update_buttons()
-        await interaction.response.edit_message(embed=self.embeds[self.current_page], view=self)
-
-    @discord.ui.button(label="1 / 1", style=discord.ButtonStyle.gray, disabled=True)
-    async def page_label(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
-        pass
-
-    @discord.ui.button(label="\u25b6\ufe0f", style=discord.ButtonStyle.secondary)
-    async def next_btn(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
-        self.current_page = (self.current_page + 1) % len(self.embeds)
-        self._update_buttons()
-        await interaction.response.edit_message(embed=self.embeds[self.current_page], view=self)
-
-    @override
-    async def on_timeout(self) -> None:
-        for child in self.children:
+    async def on_timeout(self) -> None:  # type: ignore[override]
+        for child in self.walk_children():
             if hasattr(child, "disabled"):
                 child.disabled = True  # type: ignore[attr-defined]
 
 
-class MuseumEditModal(discord.ui.Modal):
+class MuseumPaginatorContainer(Container):
+    btn_row = ActionRow()
+
+    @btn_row.button(label="\u25c0\ufe0f", style=discord.ButtonStyle.secondary)
+    async def prev_btn(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+        parent = self.view
+        assert parent is not None and isinstance(parent, MuseumPaginatorView)
+        parent.current_page = (parent.current_page - 1) % len(parent.embeds)
+        parent._update_buttons()
+        await interaction.response.edit_message(embed=parent.embeds[parent.current_page], view=parent)
+
+    @btn_row.button(label="1 / 1", style=discord.ButtonStyle.gray, disabled=True)
+    async def page_label(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+        pass
+
+    @btn_row.button(label="\u25b6\ufe0f", style=discord.ButtonStyle.secondary)
+    async def next_btn(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+        parent = self.view
+        assert parent is not None and isinstance(parent, MuseumPaginatorView)
+        parent.current_page = (parent.current_page + 1) % len(parent.embeds)
+        parent._update_buttons()
+        await interaction.response.edit_message(embed=parent.embeds[parent.current_page], view=parent)
+
+
+class MuseumEditModal(BallsDexModal):
     def __init__(self, current_cards: list[str]):
         super().__init__(title="\U0001f3db\ufe0f Edit Museum Display")
-        self.card_input = discord.ui.TextInput(
+        self.card_input = TextInput(
             label="Card IDs (comma-separated, max 3)",
             placeholder="e.g. ABC123, DEF456, GHI789",
             default=", ".join(current_cards) if current_cards else "",
@@ -61,8 +73,7 @@ class MuseumEditModal(discord.ui.Modal):
         )
         self.add_item(self.card_input)
 
-    @override
-    async def on_submit(self, interaction: discord.Interaction) -> None:
+    async def on_submit(self, interaction: discord.Interaction) -> None:  # type: ignore[override]
         await interaction.response.defer(ephemeral=True)
         raw = self.card_input.value.strip()
         if not raw:
@@ -138,7 +149,7 @@ class Museum(commands.Cog):
                 embeds.append(embed)
 
             view = MuseumPaginatorView(embeds)
-            await interaction.response.send_message(embed=embeds[0], view=view)
+            await interaction.response.send_message(embed=embeds[0], view=view)  # type: ignore[arg-type]
 
         except discord.Forbidden:
             await self.send_error(interaction, "I don't have permission to send embeds or use components here.")

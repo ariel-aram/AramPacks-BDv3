@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import random
-from typing import TYPE_CHECKING, override
+from typing import TYPE_CHECKING, cast
 
 import discord
+from ballsdex.core.discord import LayoutView
 from discord import app_commands
 from discord.ext import commands
+from discord.ui import ActionRow, Container
 
 if TYPE_CHECKING:
     from ballsdex.core.bot import BallsDexBot
@@ -49,12 +51,23 @@ COLORS = [
 ]
 
 
-class RerollFortuneView(discord.ui.View):
+class RerollFortuneView(LayoutView):
     def __init__(self, share: bool):
         super().__init__(timeout=30)
         self.share = share
+        self.container = RerollFortuneContainer()
+        self.add_item(self.container)
 
-    @discord.ui.button(label="\U0001f52e Another Fortune!", style=discord.ButtonStyle.primary)
+    async def on_timeout(self) -> None:  # type: ignore[override]
+        for child in self.walk_children():
+            if hasattr(child, "disabled"):
+                child.disabled = True  # type: ignore[attr-defined]
+
+
+class RerollFortuneContainer(Container):
+    btn_row = ActionRow()
+
+    @btn_row.button(label="\U0001f52e Another Fortune!", style=discord.ButtonStyle.primary)
     async def reroll(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
         fortune_text = random.choice(FORTUNES)
         embed = discord.Embed(
@@ -63,63 +76,69 @@ class RerollFortuneView(discord.ui.View):
             color=random.choice(COLORS),
         )
         embed.set_footer(text="Take it with a grain of glitter \u2728")
-        await interaction.response.edit_message(embed=embed, view=self)
-
-    @override
-    async def on_timeout(self) -> None:
-        for child in self.children:
-            if hasattr(child, "disabled"):
-                child.disabled = True  # type: ignore[attr-defined]
+        await interaction.response.edit_message(embed=embed, view=self.view)
 
 
-class CheerAgainView(discord.ui.View):
+class CheerAgainView(LayoutView):
     def __init__(self, target: discord.User | discord.Member):
         super().__init__(timeout=30)
         self.target = target
+        self.container = CheerAgainContainer()
+        self.add_item(self.container)
 
-    @discord.ui.button(label="\U0001f4a5 Cheer Again!", style=discord.ButtonStyle.primary)
-    async def cheer_again(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
-        cheer_text = random.choice(CHEERS)
-        embed = discord.Embed(
-            title="\U0001f4ab A Cheer Appears!",
-            description=f"{self.target.mention}, {cheer_text}",
-            color=random.choice(COLORS),
-        )
-        embed.set_thumbnail(url=getattr(self.target.display_avatar, "url", None))
-        embed.set_footer(text="Spread the hype!")
-        await interaction.response.edit_message(embed=embed, view=self)
-
-    @override
-    async def on_timeout(self) -> None:
-        for child in self.children:
+    async def on_timeout(self) -> None:  # type: ignore[override]
+        for child in self.walk_children():
             if hasattr(child, "disabled"):
                 child.disabled = True  # type: ignore[attr-defined]
 
 
-class ConfettiButtonView(discord.ui.View):
+class CheerAgainContainer(Container):
+    btn_row = ActionRow()
+
+    @btn_row.button(label="\U0001f4a5 Cheer Again!", style=discord.ButtonStyle.primary)
+    async def cheer_again(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+        parent = cast("CheerAgainView", self.view)
+        cheer_text = random.choice(CHEERS)
+        embed = discord.Embed(
+            title="\U0001f4ab A Cheer Appears!",
+            description=f"{parent.target.mention}, {cheer_text}",
+            color=random.choice(COLORS),
+        )
+        embed.set_thumbnail(url=getattr(parent.target.display_avatar, "url", None))
+        embed.set_footer(text="Spread the hype!")
+        await interaction.response.edit_message(embed=embed, view=self.view)
+
+
+class ConfettiButtonView(LayoutView):
     def __init__(self):
         super().__init__(timeout=30)
         self.count = 1
+        self.container = ConfettiButtonContainer()
+        self.add_item(self.container)
 
-    @discord.ui.button(label="\U0001f389 More Confetti!", style=discord.ButtonStyle.primary)
+    async def on_timeout(self) -> None:  # type: ignore[override]
+        for child in self.walk_children():
+            if hasattr(child, "disabled"):
+                child.disabled = True  # type: ignore[attr-defined]
+
+
+class ConfettiButtonContainer(Container):
+    btn_row = ActionRow()
+
+    @btn_row.button(label="\U0001f389 More Confetti!", style=discord.ButtonStyle.primary)
     async def more_confetti(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
-        self.count += 1
+        parent = cast("ConfettiButtonView", self.view)
+        parent.count += 1
         moment = random.choice(CONFETTI_MOMENTS)
         emoji = random.choice(
             ["\U0001f389", "\U0001f38a", "\u2728", "\U0001f973", "\U0001faa9", "\u2b50", "\U0001f388"]
         )
         embed = discord.Embed(
-            description=f"{moment}\n{emoji * min(self.count, 10)}",
+            description=f"{moment}\n{emoji * min(parent.count, 10)}",
             color=random.choice(COLORS),
         )
-        embed.set_footer(text=f"Confetti storms: {self.count}")
-        await interaction.response.edit_message(embed=embed, view=self)
-
-    @override
-    async def on_timeout(self) -> None:
-        for child in self.children:
-            if hasattr(child, "disabled"):
-                child.disabled = True  # type: ignore[attr-defined]
+        embed.set_footer(text=f"Confetti storms: {parent.count}")
+        await interaction.response.edit_message(embed=embed, view=parent)
 
 
 class Funhouse(commands.Cog):
@@ -141,7 +160,7 @@ class Funhouse(commands.Cog):
         embed.set_footer(text="Take it with a grain of glitter \u2728")
 
         view = RerollFortuneView(share=share)
-        await interaction.response.send_message(embed=embed, view=view, ephemeral=not share)
+        await interaction.response.send_message(embed=embed, view=view, ephemeral=not share)  # type: ignore[arg-type]
 
     @app_commands.command(name="cheer", description="Send an upbeat cheer with a reroll button.")
     @app_commands.describe(user="Who needs a pep talk? Leave blank for yourself.")
@@ -158,7 +177,7 @@ class Funhouse(commands.Cog):
         embed.set_footer(text="Spread the hype!")
 
         view = CheerAgainView(target=target)
-        await interaction.response.send_message(embed=embed, view=view)
+        await interaction.response.send_message(embed=embed, view=view)  # type: ignore[arg-type]
 
     @app_commands.command(name="confetti", description="Throw a celebration into the channel. Click for more!")
     @app_commands.guild_only()
@@ -174,4 +193,4 @@ class Funhouse(commands.Cog):
         embed.set_footer(text="Click the button for more confetti!")
 
         view = ConfettiButtonView()
-        await interaction.response.send_message(embed=embed, view=view)
+        await interaction.response.send_message(embed=embed, view=view)  # type: ignore[arg-type]

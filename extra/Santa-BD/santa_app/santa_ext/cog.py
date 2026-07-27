@@ -2,38 +2,49 @@ from __future__ import annotations
 
 import contextlib
 import random
-from typing import TYPE_CHECKING, override
+from typing import TYPE_CHECKING
 
 import discord
+from ballsdex.core.discord import LayoutView
 from ballsdex.core.utils.utils import is_staff
 from ballsdex.settings import settings
 from bd_models.models import Ball, BallInstance, BlacklistedID, Player
 from discord import app_commands
 from discord.ext import commands, tasks
+from discord.ui import ActionRow, Container
 
 if TYPE_CHECKING:
     from ballsdex.core.bot import BallsDexBot
 
 
-class SantaConfirmView(discord.ui.View):
+class SantaConfirmContainer(Container):
+    btn_row = ActionRow()
+
+    @btn_row.button(label="\u2705 Deliver Gifts!", style=discord.ButtonStyle.green)
+    async def confirm(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+        view = self.view
+        assert view is not None
+        view.value = True
+        self.clear_items()
+        await interaction.response.edit_message(content="\U0001f381 Santa is on his way...", view=None)
+
+    @btn_row.button(label="\u274c Cancel", style=discord.ButtonStyle.red)
+    async def cancel(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+        view = self.view
+        assert view is not None
+        view.value = False
+        self.clear_items()
+        await interaction.response.edit_message(content="Santa delivery cancelled.", view=None)
+
+
+class SantaConfirmView(LayoutView):
+    container: SantaConfirmContainer = SantaConfirmContainer()
+
     def __init__(self):
         super().__init__(timeout=30)
         self.value: bool | None = None
 
-    @discord.ui.button(label="\u2705 Deliver Gifts!", style=discord.ButtonStyle.green)
-    async def confirm(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
-        self.value = True
-        self.clear_items()
-        await interaction.response.edit_message(content="\U0001f381 Santa is on his way...", view=None)
-
-    @discord.ui.button(label="\u274c Cancel", style=discord.ButtonStyle.red)
-    async def cancel(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
-        self.value = False
-        self.clear_items()
-        await interaction.response.edit_message(content="Santa delivery cancelled.", view=None)
-
-    @override
-    async def on_timeout(self) -> None:
+    async def on_timeout(self) -> None:  # type: ignore[override]
         self.value = False
 
 
@@ -125,7 +136,7 @@ class SantaMail(commands.Cog):
         embed.set_footer(text="\u23f0 This confirmation expires in 30 seconds.")
 
         view = SantaConfirmView()
-        await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+        await interaction.response.send_message(embed=embed, view=view, ephemeral=True)  # type: ignore[arg-type]
         await view.wait()
 
         if view.value is None or view.value is False:
