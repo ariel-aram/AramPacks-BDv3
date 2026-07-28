@@ -1,4 +1,3 @@
-
 import discord
 from ballsdex.core.bot import BallsDexBot  # noqa: TC002
 from ballsdex.core.discord import LayoutView
@@ -50,9 +49,7 @@ class WishlistManageView(LayoutView):
             content = "## \U0001f381 Wishlist\nYour wishlist is empty."
         else:
             lines = [f"{item['country']} ({item['owned']} owned)" for item in data]
-            content = (
-                "## \U0001f381 Your Wishlist\n" + "\n".join(lines) + f"\n\n*{len(data)} item(s) on your wishlist*"
-            )
+            content = "## \U0001f381 Your Wishlist\n" + "\n".join(lines) + f"\n\n*{len(data)} item(s) on your wishlist*"
 
         self._cont.manage_select.options = options
         self._cont.display.content = content

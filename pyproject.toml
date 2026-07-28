@@ -44,7 +44,7 @@ search_path = [".venv/Lib/site-packages"]
 
 [tool.pyright]
 typeCheckingMode = "standard"
-include = ["extra", "scripts"]
+include = ["extra"]
 exclude = [
     "**/node_modules",
     "**/__pycache__",
