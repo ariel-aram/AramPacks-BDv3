@@ -2,7 +2,10 @@
 name = "funhouse-bd"
 version = "1.0.0"
 description = "Fun commands for Ballsdex v3 — fortunes, cheers, confetti, and good vibes."
-authors = [{name = "haymooed"}]
+authors = [
+    {name = "ariel-aram"},
+    {name = "haymooed"}
+]
 requires-python = ">=3.14"
 
 [build-system]

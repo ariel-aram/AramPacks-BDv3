@@ -2,7 +2,7 @@
 name = "specialspawn-bd"
 version = "1.0.0"
 description = "A Ballsdex v3 extra which allows you to configure a secondary spawn channel with rare collectibles being more common, useful for dex bots seeking to give benefits for certain users."
-authors = [{name = "arielaram"}]
+authors = [{name = "ariel-aram"}]
 requires-python = ">=3.14"
 
 [build-system]

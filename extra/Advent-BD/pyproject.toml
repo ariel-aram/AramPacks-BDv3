@@ -2,7 +2,10 @@
 name = "advent-bd"
 version = "1.0.0"
 description = "An Advent Calendar extra package for Ballsdex v3, offering daily rewards throughout December."
-authors = [{name = "haymooed"}]
+authors = [
+    {name = "ariel-aram"},
+    {name = "haymooed"}
+]
 requires-python = ">=3.14"
 
 [build-system]
