@@ -12,15 +12,10 @@ from discord import app_commands
 from discord.ext import commands
 from discord.ui import ActionRow, Container, TextInput
 
-from ..models import FlexData
+from ..models import FlexData, FlexGuildConfig
 
 if TYPE_CHECKING:
     from ballsdex.core.bot import BallsDexBot
-
-CONFIG = {
-    "mod_approval_channel_id": 0,
-    "public_flex_channel": 0,
-}
 
 
 async def flex_autocomplete(interaction: discord.Interaction, current: str):
@@ -165,13 +160,98 @@ class Flex(commands.Cog):
     def __init__(self, bot: BallsDexBot) -> None:
         self.bot = bot
 
+    config_group = app_commands.Group(
+        name="flexconfig",
+        description="Configure the flex system for this server.",
+        default_permissions=discord.Permissions(manage_guild=True),
+    )
+
+    async def _get_config(self, guild_id: int) -> FlexGuildConfig | None:
+        try:
+            return await FlexGuildConfig.objects.aget(guild_id=guild_id)
+        except FlexGuildConfig.DoesNotExist:
+            return None
+
+    @config_group.command(name="setup", description="Enable flex and set the moderator approval channel.")
+    @app_commands.describe(mod_channel="Channel where flex submissions are sent for review.")
+    @app_commands.guild_only()
+    async def config_setup(self, interaction: discord.Interaction, mod_channel: discord.TextChannel) -> None:
+        assert interaction.guild is not None
+        config, _ = await FlexGuildConfig.objects.aget_or_create(guild_id=interaction.guild.id)
+        config.mod_approval_channel_id = mod_channel.id
+        config.enabled = True
+        await config.asave()
+        await interaction.response.send_message(
+            f"\u2705 Flex system enabled! Submissions will be sent to {mod_channel.mention}.",
+            ephemeral=True,
+        )
+
+    @config_group.command(name="public_channel", description="Set the public channel for approved flexes.")
+    @app_commands.describe(channel="Channel where approved flexes are posted publicly.")
+    @app_commands.guild_only()
+    async def config_public_channel(self, interaction: discord.Interaction, channel: discord.TextChannel) -> None:
+        assert interaction.guild is not None
+        config = await self._get_config(interaction.guild.id)
+        if config is None:
+            await interaction.response.send_message(
+                "\u26a0\ufe0f Run `/flexconfig setup` first to enable the flex system.", ephemeral=True
+            )
+            return
+        config.public_flex_channel_id = channel.id
+        await config.asave()
+        await interaction.response.send_message(
+            f"\u2705 Approved flexes will be posted in {channel.mention}.", ephemeral=True
+        )
+
+    @config_group.command(name="disable", description="Disable the flex system for this server.")
+    @app_commands.guild_only()
+    async def config_disable(self, interaction: discord.Interaction) -> None:
+        assert interaction.guild is not None
+        config = await self._get_config(interaction.guild.id)
+        if config is None:
+            await interaction.response.send_message("\u26a0\ufe0f Flex system is not set up.", ephemeral=True)
+            return
+        config.enabled = False
+        await config.asave()
+        await interaction.response.send_message("\u2705 Flex system disabled.", ephemeral=True)
+
+    @config_group.command(name="status", description="Show current flex configuration.")
+    @app_commands.guild_only()
+    async def config_status(self, interaction: discord.Interaction) -> None:
+        assert interaction.guild is not None
+        config = await self._get_config(interaction.guild.id)
+        if config is None or not config.enabled:
+            await interaction.response.send_message("Flex system is not configured for this server.", ephemeral=True)
+            return
+
+        mod_ch = (
+            interaction.guild.get_channel(config.mod_approval_channel_id) if config.mod_approval_channel_id else None
+        )
+        pub_ch = interaction.guild.get_channel(config.public_flex_channel_id) if config.public_flex_channel_id else None
+
+        await interaction.response.send_message(
+            f"## Flex Configuration\n"
+            f"Status: **enabled**\n"
+            f"Mod channel: {mod_ch.mention if mod_ch else 'not set'}\n"
+            f"Public channel: {pub_ch.mention if pub_ch else 'not set'}",
+            ephemeral=True,
+        )
+
     @app_commands.command(name="flex", description="Submit one of your balls for moderator approval.")
     @app_commands.autocomplete(ball=flex_autocomplete)
     async def flex(self, interaction: discord.Interaction, ball: str) -> None:
         await interaction.response.defer(ephemeral=True)
 
+        assert interaction.guild is not None
         uid = interaction.user.id
         now = int(time.time())
+
+        config = await self._get_config(interaction.guild.id)
+        if config is None or not config.enabled or not config.mod_approval_channel_id:
+            await interaction.followup.send(
+                "\u26a0\ufe0f Flex system is not configured for this server.", ephemeral=True
+            )
+            return
 
         flexdata, _ = await FlexData.objects.aget_or_create(user_id=uid)
 
@@ -196,10 +276,10 @@ class Flex(commands.Cog):
             await interaction.followup.send("\u274c You don't own that ball.", ephemeral=True)
             return
 
-        mod_channel = self.bot.get_channel(CONFIG["mod_approval_channel_id"])
+        mod_channel = self.bot.get_channel(config.mod_approval_channel_id)
         if not mod_channel or not isinstance(mod_channel, discord.TextChannel):
             await interaction.followup.send(
-                "\u26a0\ufe0f Flex system not configured (missing mod channel).", ephemeral=True
+                "\u26a0\ufe0f Mod approval channel not found. Contact an admin.", ephemeral=True
             )
             return
 
@@ -229,7 +309,7 @@ class Flex(commands.Cog):
             bot=self.bot,
             instance_id=instance.id,  # type: ignore[attr-defined]
             owner_id=interaction.user.id,
-            public_channel_id=CONFIG["public_flex_channel"],
+            public_channel_id=config.public_flex_channel_id or 0,
         )
         await mod_channel.send(embed=embed, file=file)
         msg = await mod_channel.send(view=view)
