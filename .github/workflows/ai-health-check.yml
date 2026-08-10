@@ -1,0 +1,236 @@
+name: AI Weekly Code Health Check
+
+on:
+  schedule:
+    - cron: "0 6 * * 1"  # Every Monday at 06:00 UTC
+  workflow_dispatch:      # Allow manual trigger
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  ai-health-check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
+      - name: Install uv
+        run: pip install uv
+
+      - name: Install dependencies
+        run: uv sync
+
+      - name: Run lint checks
+        run: |
+          {
+            echo "=== RUFF CHECK ==="
+            uv run ruff check extra scripts 2>&1 || true
+            echo ""
+            echo "=== RUFF FORMAT ==="
+            uv run ruff format extra scripts --check 2>&1 || true
+            echo ""
+            echo "=== PYRIGHT ==="
+            npx pyright extra scripts 2>&1 || true
+          } > $GITHUB_WORKSPACE/lint_output.txt
+
+      - name: Collect recent changes
+        run: |
+          echo "=== RECENT CHANGES (last 7 days) ===" > $GITHUB_WORKSPACE/changes.txt
+          git log --oneline --since="7 days ago" --name-only >> $GITHUB_WORKSPACE/changes.txt 2>/dev/null || true
+
+      - name: Query OpenRouter AI
+        id: ai_query
+        run: |
+          LINT=$(cat $GITHUB_WORKSPACE/lint_output.txt)
+          CHANGES=$(cat $GITHUB_WORKSPACE/changes.txt)
+          
+          # Skip if no lint output at all
+          if [ -z "$(cat $GITHUB_WORKSPACE/lint_output.txt | tr -d '[:space:]')" ]; then
+            echo "No lint output. Skipping AI query."
+            echo "fixes_applied=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          
+          # Build prompt
+          cat > $GITHUB_WORKSPACE/prompt.txt << 'PROMPTEOF'
+          You are a code health assistant for a Discord bot monorepo.
+          The repo is at https://github.com/ariel-aram/AramPacks-BDv3
+          
+          ## Project structure
+          - extra/ contains subpackages for a Discord bot (ballsDex v3)
+          - Each subpackage has a cog.py with Discord views/commands
+          - pyproject.toml has ruff + pyright config
+          - Python 3.14, discord.py 2.7, django 6.x
+          - Uses ballsdex.core.discord.LayoutView (Components v2)
+          - ruff rules: E, F, I, W, B, UP, C4, SIM, RUF, ASYNC, T20, TC, PLC, PLE, PLW
+          
+          ## Current lint output
+          PROMPTEOF
+          cat $GITHUB_WORKSPACE/lint_output.txt >> $GITHUB_WORKSPACE/prompt.txt
+          echo "" >> $GITHUB_WORKSPACE/prompt.txt
+          echo "## Recently changed files" >> $GITHUB_WORKSPACE/prompt.txt
+          cat $GITHUB_WORKSPACE/changes.txt >> $GITHUB_WORKSPACE/prompt.txt
+          cat >> $GITHUB_WORKSPACE/prompt.txt << 'PROMPTEOF2'
+          
+          ---
+          
+          ## Your task
+          Review the lint/type errors above. For each issue:
+          1. Identify the exact file path and line
+          2. Explain the issue briefly
+          3. Provide the fix
+          
+          If there are no issues, respond with just: NO_ISSUES
+          
+          If there are issues, respond with a JSON array of fixes:
+          ```json
+          [{"file": "extra/Package/subpackage/cog.py", "line": 42, "fix": "change X to Y", "code": "from foo import Bar  # noqa: F401"}]
+          ```
+          
+          Rules:
+          - Only fix actual errors, not warnings
+          - Preserve existing formatting
+          - Do NOT add new dependencies
+          - Do NOT change business logic
+          - Do NOT fix things in migrations/
+          - Keep fixes minimal and targeted
+          PROMPTEOF2
+          
+          # Build JSON payload
+          python3 -c "
+          import json
+          prompt = open('$GITHUB_WORKSPACE/prompt.txt').read()
+          payload = {
+              'model': 'openai/gpt-5.6-luna',
+              'messages': [
+                  {'role': 'system', 'content': 'You are a precise code fixer. Only output valid JSON fixes or NO_ISSUES. No commentary.'},
+                  {'role': 'user', 'content': prompt}
+              ],
+              'max_tokens': 4096,
+              'temperature': 0.1
+          }
+          with open('$GITHUB_WORKSPACE/payload.json', 'w') as f:
+              json.dump(payload, f)
+          "
+          
+          # Call OpenRouter API
+          curl -s -X POST https://openrouter.ai/api/v1/chat/completions \
+            -H "Authorization: Bearer ${{ secrets.OPENROUTER_API_KEY }}" \
+            -H "Content-Type: application/json" \
+            -d @$GITHUB_WORKSPACE/payload.json > $GITHUB_WORKSPACE/response.json
+          
+          # Extract response content
+          python3 -c "
+          import json
+          try:
+              resp = json.load(open('$GITHUB_WORKSPACE/response.json'))
+              content = resp.get('choices', [{}])[0].get('message', {}).get('content', 'NO_ISSUES')
+              open('$GITHUB_WORKSPACE/ai_response.txt', 'w').write(content)
+              print('AI response received')
+          except Exception as e:
+              print(f'Error: {e}')
+              open('$GITHUB_WORKSPACE/ai_response.txt', 'w').write('NO_ISSUES')
+          "
+
+      - name: Apply AI fixes
+        id: apply_fixes
+        run: |
+          AI_RESPONSE=$(cat $GITHUB_WORKSPACE/ai_response.txt)
+          
+          if [ "$AI_RESPONSE" = "NO_ISSUES" ]; then
+            echo "No issues found by AI."
+            echo "fixes_applied=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          
+          echo "Applying AI fixes..."
+          
+          python3 << 'PYEOF'
+          import json, os, re, sys
+          
+          workspace = os.environ.get('GITHUB_WORKSPACE', '/github/workspace')
+          
+          try:
+              content = open(os.path.join(workspace, 'ai_response.txt')).read()
+              
+              json_match = re.search(r'```json\s*(.*?)\s*```', content, re.DOTALL)
+              if json_match:
+                  fixes = json.loads(json_match.group(1))
+              else:
+                  fixes = json.loads(content)
+              
+              applied = 0
+              for fix in fixes:
+                  file_path = fix.get('file', '')
+                  line = fix.get('line', 0)
+                  new_code = fix.get('code', '')
+                  reason = fix.get('fix', '')
+                  
+                  if not file_path or not new_code:
+                      continue
+                  
+                  full_path = os.path.join(workspace, file_path.lstrip('./'))
+                  
+                  if not os.path.exists(full_path):
+                      print(f"  SKIP: {file_path} not found")
+                      continue
+                  
+                  with open(full_path, 'r') as f:
+                      lines = f.readlines()
+                  
+                  if 0 < line <= len(lines):
+                      lines[line - 1] = new_code + '\n' if not new_code.endswith('\n') else new_code
+                      with open(full_path, 'w') as f:
+                          f.writelines(lines)
+                      print(f"  FIXED: {file_path}:{line} - {reason}")
+                      applied += 1
+                  else:
+                      print(f"  SKIP: {file_path}:{line} - out of range")
+              
+              print(f"Applied {applied} fix(es).")
+              
+              # Write result file for bash to read
+              with open(os.path.join(workspace, 'fixes_result.txt'), 'w') as f:
+                  f.write('true' if applied > 0 else 'false')
+          
+          except json.JSONDecodeError:
+              print("Could not parse AI response. Skipping.")
+              with open(os.path.join(workspace, 'fixes_result.txt'), 'w') as f:
+                  f.write('false')
+          except Exception as e:
+              print(f"Error: {e}")
+              with open(os.path.join(workspace, 'fixes_result.txt'), 'w') as f:
+                  f.write('false')
+          PYEOF
+          
+          RESULT=$(cat $GITHUB_WORKSPACE/fixes_result.txt)
+          echo "fixes_applied=$RESULT" >> "$GITHUB_OUTPUT"
+
+      - name: Create Pull Request
+        if: steps.apply_fixes.outputs.fixes_applied == 'true'
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: ai-weekly-health-check
+          commit-message: "fix: AI-driven weekly code health fixes"
+          title: "[AI] Weekly code health fixes"
+          body: |
+            Automated code health check using OpenRouter (`openai/gpt-5.6-luna`).
+            
+            **Checks performed:**
+            - `ruff check` (linting)
+            - `ruff format --check` (formatting)
+            - `pyright` (type checking)
+            
+            Review changes carefully before merging.
+          labels: |
+            automated
+            code-quality
