@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import os
 import sys
 import textwrap
@@ -13,6 +14,8 @@ from cardstudio_app.models import CardConfig
 
 if TYPE_CHECKING:
     from bd_models.models import BallInstance
+
+log = logging.getLogger("cardstudio_app.image_gen")
 
 original_draw_card = bd_image_gen.draw_card
 
@@ -50,6 +53,14 @@ def draw_card(ball_instance: BallInstance) -> tuple[Image.Image, dict[str, Any]]
     if config is None or not config.enabled:
         return original_draw_card(ball_instance)
 
+    try:
+        return _draw_card_styled(ball_instance, config)
+    except Exception:
+        log.exception("CardStudio draw_card failed; falling back to original")
+        return original_draw_card(ball_instance)
+
+
+def _draw_card_styled(ball_instance: BallInstance, config: CardConfig) -> tuple[Image.Image, dict[str, Any]]:
     ball = ball_instance.countryball
     special_credits = ""
     card_name = ball.cached_regime.name
