@@ -40,9 +40,31 @@ def hex_to_rgba(value: str, default: tuple[int, int, int, int] = (0, 0, 0, 255))
     return (int(cleaned[0:2], 16), int(cleaned[2:4], 16), int(cleaned[4:6], 16), 255)
 
 
+def _field_path(field: Any) -> str:
+    name = getattr(field, "name", None)
+    if isinstance(name, str) and name.startswith("/"):
+        storage = getattr(field, "storage", None)
+        if storage is not None and hasattr(storage, "path"):
+            return storage.path(name.lstrip("/"))
+    return field.path
+
+
+def _open_image_field(field: Any) -> Image.Image:
+    name = getattr(field, "name", None)
+    if isinstance(name, str) and name.startswith("/"):
+        log.warning("FileField name starts with '/'; stripping leading slash: %s", name)
+        storage = getattr(field, "storage", None)
+        if storage is not None:
+            cleaned = name.lstrip("/")
+            if hasattr(storage, "path"):
+                return Image.open(storage.path(cleaned))
+            return Image.open(storage.open(cleaned, "rb"))
+    return Image.open(field)
+
+
 def load_font(field: Any, size: int, default_name: str) -> ImageFont.FreeTypeFont:
     if field and field.name:
-        path = field.path
+        path = _field_path(field)
         if os.path.isfile(path):
             return ImageFont.truetype(path, size)
     return ImageFont.truetype(str(bd_image_gen.SOURCES_PATH / default_name), size)
@@ -67,15 +89,15 @@ def _draw_card_styled(ball_instance: BallInstance, config: CardConfig) -> tuple[
 
     if special_image := ball_instance.special_card:
         card_name = getattr(ball_instance.specialcard, "name", card_name)
-        image = Image.open(special_image)
+        image = _open_image_field(special_image)
         if ball_instance.specialcard and ball_instance.specialcard.credits:
             special_credits += f" • Special Author: {ball_instance.specialcard.credits}"
     else:
-        image = Image.open(ball.cached_regime.background)
+        image = _open_image_field(ball.cached_regime.background)
     image = image.convert("RGBA")
 
     economy = ball.cached_economy
-    icon = Image.open(economy.icon).convert("RGBA") if economy else None
+    icon = _open_image_field(economy.icon).convert("RGBA") if economy else None
 
     draw = ImageDraw.Draw(image)
 
@@ -175,7 +197,7 @@ def _draw_card_styled(ball_instance: BallInstance, config: CardConfig) -> tuple[
         stroke_fill=hex_to_rgba(config.credits_stroke_color),
     )
 
-    artwork = Image.open(ball.collection_card).convert("RGBA")
+    artwork = _open_image_field(ball.collection_card).convert("RGBA")
     artwork_size = (max(1, config.artwork_x2 - config.artwork_x1), max(1, config.artwork_y2 - config.artwork_y1))
     image.paste(ImageOps.fit(artwork, artwork_size), (config.artwork_x1, config.artwork_y1))
 
