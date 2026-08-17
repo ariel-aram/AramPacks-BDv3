@@ -37,14 +37,67 @@ plugins.md013.enabled = false
 plugins.md041.enabled = false
 
 [tool.pyrefly]
-source_directories = ["extra"]
+source_directories = [
+    "extra/Advent-BD",
+    "extra/CardStudio-BD",
+    "extra/CFCommands-BD",
+    "extra/Events-BD",
+    "extra/Exchange-BD",
+    "extra/Flex-BD",
+    "extra/Funhouse-BD",
+    "extra/Moderation-BD",
+    "extra/Museum-BD",
+    "extra/Preview-BD",
+    "extra/ReindeerRush-BD",
+    "extra/Santa-BD",
+    "extra/SpecialSpawn-BD",
+    "extra/Wishlist-BD"
+]
 ignore_all_errors = false
 python_version = "3.14"
-search_path = [".venv/Lib/site-packages"]
+exclude = [
+    "**/__pyrefly_virtual__/**",
+    "**/inmemory/**",
+    "**/migrations/**"
+]
+search_path = [
+    ".venv/Lib/site-packages",
+    "extra/Advent-BD",
+    "extra/CardStudio-BD",
+    "extra/CFCommands-BD",
+    "extra/Events-BD",
+    "extra/Exchange-BD",
+    "extra/Flex-BD",
+    "extra/Funhouse-BD",
+    "extra/Moderation-BD",
+    "extra/Museum-BD",
+    "extra/Preview-BD",
+    "extra/ReindeerRush-BD",
+    "extra/Santa-BD",
+    "extra/SpecialSpawn-BD",
+    "extra/Wishlist-BD"
+]
 
 [tool.pyright]
 typeCheckingMode = "standard"
 include = ["extra"]
+extraPaths = [
+    ".venv/Lib/site-packages",
+    "extra/Advent-BD",
+    "extra/CardStudio-BD",
+    "extra/CFCommands-BD",
+    "extra/Events-BD",
+    "extra/Exchange-BD",
+    "extra/Flex-BD",
+    "extra/Funhouse-BD",
+    "extra/Moderation-BD",
+    "extra/Museum-BD",
+    "extra/Preview-BD",
+    "extra/ReindeerRush-BD",
+    "extra/Santa-BD",
+    "extra/SpecialSpawn-BD",
+    "extra/Wishlist-BD"
+]
 exclude = [
     "**/node_modules",
     "**/__pycache__",
@@ -99,4 +152,45 @@ sort_first = [
     "build-system",
     "tool.uv.sources",
     "tool.uv"
+]
+
+[tool.ty]
+source_directories = [
+    "extra/Advent-BD",
+    "extra/CardStudio-BD",
+    "extra/CFCommands-BD",
+    "extra/Events-BD",
+    "extra/Exchange-BD",
+    "extra/Flex-BD",
+    "extra/Funhouse-BD",
+    "extra/Moderation-BD",
+    "extra/Museum-BD",
+    "extra/Preview-BD",
+    "extra/ReindeerRush-BD",
+    "extra/Santa-BD",
+    "extra/SpecialSpawn-BD",
+    "extra/Wishlist-BD"
+]
+python_version = "3.14"
+exclude = [
+    "**/__pyrefly_virtual__/**",
+    "**/inmemory/**",
+    "**/migrations/**"
+]
+search_path = [
+    ".venv/Lib/site-packages",
+    "extra/Advent-BD",
+    "extra/CardStudio-BD",
+    "extra/CFCommands-BD",
+    "extra/Events-BD",
+    "extra/Exchange-BD",
+    "extra/Flex-BD",
+    "extra/Funhouse-BD",
+    "extra/Moderation-BD",
+    "extra/Museum-BD",
+    "extra/Preview-BD",
+    "extra/ReindeerRush-BD",
+    "extra/Santa-BD",
+    "extra/SpecialSpawn-BD",
+    "extra/Wishlist-BD"
 ]

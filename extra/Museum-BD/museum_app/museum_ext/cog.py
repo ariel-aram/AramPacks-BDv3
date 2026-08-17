@@ -3,7 +3,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import discord
-from asgiref.sync import sync_to_async
 from ballsdex.core.discord import LayoutView
 from ballsdex.core.discord import Modal as BallsDexModal
 from discord import app_commands
@@ -57,10 +56,11 @@ class MuseumPaginatorContainer(Container):
     async def prev_btn(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
         parent = self.view
         assert parent is not None and isinstance(parent, MuseumPaginatorView)
-        parent.current_page = (parent.current_page - 1) % len(parent.cards)
-        parent._update_buttons()
-        parent._update_display()
-        await interaction.response.edit_message(view=parent)
+        if parent.current_page > 0:
+            parent.current_page -= 1
+            parent._update_buttons()
+            parent._update_display()
+            await interaction.response.edit_message(view=parent)
 
     @btn_row.button(label="1 / 1", style=discord.ButtonStyle.gray, disabled=True)
     async def page_label(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
@@ -70,10 +70,11 @@ class MuseumPaginatorContainer(Container):
     async def next_btn(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
         parent = self.view
         assert parent is not None and isinstance(parent, MuseumPaginatorView)
-        parent.current_page = (parent.current_page + 1) % len(parent.cards)
-        parent._update_buttons()
-        parent._update_display()
-        await interaction.response.edit_message(view=parent)
+        if parent.current_page < len(parent.cards) - 1:
+            parent.current_page += 1
+            parent._update_buttons()
+            parent._update_display()
+            await interaction.response.edit_message(view=parent)
 
 
 class MuseumEditModal(BallsDexModal):
@@ -117,16 +118,20 @@ class MuseumEditModal(BallsDexModal):
         )
 
 
-@sync_to_async
-def get_museum_cards(user_id: int) -> list[str]:
-    return list(MuseumCard.objects.filter(user_id=user_id).order_by("position").values_list("card_id", flat=True))
+async def get_museum_cards(user_id: int) -> list[str]:
+    return [
+        card_id
+        async for card_id in MuseumCard.objects.filter(user_id=user_id)
+        .order_by("position")
+        .values_list("card_id", flat=True)
+    ]
 
 
-@sync_to_async
-def set_museum_cards(user_id: int, cards: list[str]) -> None:
-    MuseumCard.objects.filter(user_id=user_id).delete()
-    for i, card_id in enumerate(cards, 1):
-        MuseumCard.objects.create(user_id=user_id, card_id=card_id, position=i)
+async def set_museum_cards(user_id: int, cards: list[str]) -> None:
+    await MuseumCard.objects.filter(user_id=user_id).adelete()
+    await MuseumCard.objects.abulk_create(
+        [MuseumCard(user_id=user_id, card_id=card_id, position=i) for i, card_id in enumerate(cards, 1)]
+    )
 
 
 class Museum(commands.Cog):

@@ -1,14 +1,21 @@
+from __future__ import annotations
+
 import logging
 import random
-from typing import cast
+from datetime import timedelta
+from typing import TYPE_CHECKING, cast
 
 import discord
-from ballsdex.core.bot import BallsDexBot  # noqa: TC002
 from ballsdex.core.utils.buttons import ConfirmChoiceView
 from ballsdex.core.utils.transformers import BallInstanceTransformer  # noqa: TC002
 from bd_models.models import Ball, BallInstance, Player, TradeObject
 from discord import app_commands
 from discord.ext import commands
+from django.utils import timezone
+from settings.models import settings
+
+if TYPE_CHECKING:
+    from ballsdex.core.bot import BallsDexBot
 
 log = logging.getLogger("ballsdex.packages.exchange")
 
@@ -19,7 +26,7 @@ class Exchange(commands.Cog):
 
     def __init__(self, bot: BallsDexBot):
         self.bot = bot
-        self.cooldowns = {}
+        self.cooldowns: dict[int, float] = {}
 
     @app_commands.command(name="exchange", description="Exchange one of your balls for a random new one.")
     @app_commands.describe(countryball="Select a ball from your collection to exchange.")
@@ -38,9 +45,16 @@ class Exchange(commands.Cog):
         self.cooldowns[user_id] = now
 
         player, _ = await Player.objects.aget_or_create(discord_id=user_id)
-        chosen = await BallInstance.objects.filter(id=countryball.id, player=player).select_related("ball").afirst()  # type: ignore[attr-defined]
+        chosen = await BallInstance.objects.filter(id=countryball.pk, player=player).select_related("ball").afirst()
         if chosen is None:
             await interaction.response.send_message("\u274c You don\u2019t own that ball.", ephemeral=True)
+            return
+
+        if chosen.locked and chosen.locked > timezone.now() - timedelta(minutes=30):
+            await interaction.response.send_message(
+                "\u274c This countryball is currently locked in an active trade.",
+                ephemeral=True,
+            )
             return
 
         confirm_view = ConfirmChoiceView(interaction)
@@ -59,16 +73,18 @@ class Exchange(commands.Cog):
             return
 
         new_ball = random.choice(enabled_balls)
-        atk_bonus = random.randint(-20, 20)
-        hp_bonus = random.randint(-20, 20)
+        atk_bonus = random.randint(-settings.max_attack_bonus, settings.max_attack_bonus)
+        hp_bonus = random.randint(-settings.max_health_bonus, settings.max_health_bonus)
 
         try:
-            await TradeObject.objects.filter(ballinstance_id=chosen.id).adelete()  # type: ignore[attr-defined]
+            await TradeObject.objects.filter(ballinstance_id=chosen.pk).adelete()
             await BallInstance.objects.acreate(
                 player=player,
                 ball=new_ball,
                 attack_bonus=atk_bonus,
                 health_bonus=hp_bonus,
+                server_id=interaction.guild_id,
+                catch_date=timezone.now(),
             )
             await chosen.adelete()
         except Exception as e:

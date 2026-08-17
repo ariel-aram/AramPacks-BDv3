@@ -11,6 +11,7 @@ from discord import app_commands
 from discord.ext import commands
 from discord.ui import ActionRow, Button, Container, TextDisplay
 from django.utils import timezone
+from settings.models import settings
 
 from ..models import AdventClaim, AdventDayConfig, RewardType
 
@@ -70,20 +71,13 @@ class AdventCalendarView(LayoutView):
 
 
 class AdventCalendarContainer(Container):
-    display = TextDisplay("")
-    row0 = ActionRow()
-    row1 = ActionRow()
-    row2 = ActionRow()
-    row3 = ActionRow()
-    row4 = ActionRow()
-
     def __init__(self):
         super().__init__()
-        self.add_item(self.row0)
-        self.add_item(self.row1)
-        self.add_item(self.row2)
-        self.add_item(self.row3)
-        self.add_item(self.row4)
+        self.display = TextDisplay("")
+        self.add_item(self.display)
+        self.rows: list[ActionRow] = [ActionRow() for _ in range(5)]
+        for row in self.rows:
+            self.add_item(row)
 
 
 class AdventCalendar(commands.Cog):
@@ -105,7 +99,16 @@ class AdventCalendar(commands.Cog):
             return
 
         now = timezone.now()
+        if now.month != 12:
+            await interaction.response.send_message(
+                "The Advent Calendar is only available during December!", ephemeral=True
+            )
+            return
+
         today = now.day
+        if today > CALENDAR_DAYS:
+            await interaction.response.send_message("The Advent Calendar has concluded for this year!", ephemeral=True)
+            return
 
         day_config = (
             await AdventDayConfig.objects.filter(day=today, enabled=True).select_related("ball", "special").afirst()
@@ -130,6 +133,10 @@ class AdventCalendar(commands.Cog):
         embed = discord.Embed(title=f"\U0001f381 Advent Calendar - Day {today}", color=discord.Color.gold())
         reward_lines = []
 
+        atk_bonus = random.randint(-settings.max_attack_bonus, settings.max_attack_bonus)
+        hp_bonus = random.randint(-settings.max_health_bonus, settings.max_health_bonus)
+        server_id = interaction.guild_id
+
         if reward_type == RewardType.RANDOM_SPECIAL.value:
             enabled_balls = [b async for b in Ball.enabled_objects.all()]
             all_specials = [s async for s in Special.objects.all()]
@@ -140,6 +147,10 @@ class AdventCalendar(commands.Cog):
                     ball=chosen_ball,
                     player=player,
                     special=chosen_special,
+                    attack_bonus=atk_bonus,
+                    health_bonus=hp_bonus,
+                    server_id=server_id,
+                    catch_date=now,
                 )
                 emoji = ""
                 if chosen_ball.emoji_id and interaction.client:
@@ -155,6 +166,10 @@ class AdventCalendar(commands.Cog):
                 await BallInstance.objects.acreate(
                     ball=ball_obj,
                     player=player,
+                    attack_bonus=atk_bonus,
+                    health_bonus=hp_bonus,
+                    server_id=server_id,
+                    catch_date=now,
                 )
                 emoji = ""
                 if ball_obj.emoji_id and interaction.client:
@@ -171,6 +186,10 @@ class AdventCalendar(commands.Cog):
                     ball=ball_obj,
                     player=player,
                     special=special_obj,
+                    attack_bonus=atk_bonus,
+                    health_bonus=hp_bonus,
+                    server_id=server_id,
+                    catch_date=now,
                 )
                 emoji = ""
                 if ball_obj.emoji_id and interaction.client:
@@ -215,17 +234,11 @@ class AdventCalendar(commands.Cog):
 
         view = AdventCalendarView(player_id=user_id if player else 0)
 
-        rows = [
-            view._cont.row0,
-            view._cont.row1,
-            view._cont.row2,
-            view._cont.row3,
-            view._cont.row4,
-        ]
+        rows = view._cont.rows
         for day in range(1, CALENDAR_DAYS + 1):
             claimed = day in claimed_set
             configured = day in all_configs
-            is_today = day == today
+            is_today = day == today and now.month == 12
 
             if claimed:
                 label = f"{day}"

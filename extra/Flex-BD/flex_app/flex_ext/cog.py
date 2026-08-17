@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import contextlib
 import time
+from concurrent.futures import ThreadPoolExecutor
 from typing import TYPE_CHECKING, cast, override
 
 import discord
@@ -22,7 +23,9 @@ async def flex_autocomplete(interaction: discord.Interaction, current: str):
     try:
         player, _ = await Player.objects.aget_or_create(discord_id=interaction.user.id)
         balls = []
-        async for inst in BallInstance.objects.filter(player=player).select_related("ball"):
+        async for inst in (
+            BallInstance.objects.filter(player=player, deleted=False).select_related("ball").order_by("-id")
+        ):
             balls.append(inst)
     except Exception:
         return []
@@ -35,10 +38,10 @@ async def flex_autocomplete(interaction: discord.Interaction, current: str):
         if not ball:
             continue
 
-        label = f"#{inst.id:0X} {ball.country} ATK:{inst.attack_bonus:+d}% HP:{inst.health_bonus:+d}%"
+        label = f"#{inst.pk:0X} {ball.country} ATK:{inst.attack_bonus:+d}% HP:{inst.health_bonus:+d}%"
 
         if current in label.lower():
-            choices.append(app_commands.Choice(name=label[:100], value=str(inst.id)))
+            choices.append(app_commands.Choice(name=label[:100], value=str(inst.pk)))
 
         if len(choices) >= 25:
             break
@@ -66,23 +69,43 @@ class FlexDecisionModal(BallsDexModal):
 
         instance_id = self.view_ref.instance_id
         owner_id = self.view_ref.owner_id
-        public_channel_id = self.view_ref.public_channel_id
+        guild_id = self.view_ref.guild_id
 
         try:
             owner_player, _ = await Player.objects.aget_or_create(discord_id=owner_id)
-            instance = await BallInstance.objects.aget(id=instance_id, player=owner_player)
+            instance = await BallInstance.objects.aget(id=instance_id, player=owner_player, deleted=False)
         except Exception:
             self.view_ref.disable_all()
             if self.view_ref.message:
-                await self.view_ref.message.edit(view=self.view_ref)
+                with contextlib.suppress(Exception):
+                    await self.view_ref.message.edit(view=self.view_ref)
             return await interaction.followup.send("This ball no longer exists or ownership changed.", ephemeral=True)
 
         owner_user = interaction.client.get_user(owner_id)
+        if not owner_user:
+            try:
+                owner_user = await interaction.client.fetch_user(owner_id)
+            except Exception:
+                owner_user = None
 
         if self.approve:
+            config = await FlexGuildConfig.objects.filter(guild_id=guild_id).afirst()
+            public_channel_id = config.public_flex_channel_id if config else self.view_ref.public_channel_id
+            if not public_channel_id:
+                return await interaction.followup.send(
+                    "Public flex channel is not configured. Use `/flexconfig public_channel` first.",
+                    ephemeral=True,
+                )
+
             public_channel = interaction.client.get_channel(public_channel_id)
-            if not public_channel or not isinstance(public_channel, discord.TextChannel):
-                return await interaction.followup.send("Public flex channel not found.", ephemeral=True)
+            if not public_channel:
+                try:
+                    public_channel = await interaction.client.fetch_channel(public_channel_id)
+                except Exception:
+                    public_channel = None
+
+            if not public_channel or not isinstance(public_channel, (discord.TextChannel, discord.Thread)):
+                return await interaction.followup.send("Public flex channel not found or inaccessible.", ephemeral=True)
 
             content, file, v = await instance.prepare_for_message(cast("discord.Interaction[BallsDexBot]", interaction))
 
@@ -94,7 +117,7 @@ class FlexDecisionModal(BallsDexModal):
 
             if owner_user:
                 try:
-                    msg = f"\u2705 Your flex `#{instance.id:0X}` was approved!"  # type: ignore[attr-defined]
+                    msg = f"\u2705 Your flex `#{instance.pk:0X}` was approved!"
                     if self.notes.value:
                         msg += f"\n\U0001f4dd Moderator note: {self.notes.value}"
                     await owner_user.send(msg)
@@ -106,7 +129,7 @@ class FlexDecisionModal(BallsDexModal):
         else:
             if owner_user:
                 try:
-                    msg = f"\u274c Your flex `#{instance.id:0X}` was denied."  # type: ignore[attr-defined]
+                    msg = f"\u274c Your flex `#{instance.pk:0X}` was denied."
                     if self.notes.value:
                         msg += f"\n\U0001f4dd Moderator note: {self.notes.value}"
                     await owner_user.send(msg)
@@ -122,11 +145,19 @@ class FlexDecisionModal(BallsDexModal):
 
 
 class FlexApprovalView(LayoutView):
-    def __init__(self, bot: BallsDexBot, instance_id: int, owner_id: int, public_channel_id: int) -> None:
+    def __init__(
+        self,
+        bot: BallsDexBot,
+        instance_id: int,
+        owner_id: int,
+        guild_id: int,
+        public_channel_id: int | None = None,
+    ) -> None:
         super().__init__(timeout=None)
         self.bot = bot
         self.instance_id = instance_id
         self.owner_id = owner_id
+        self.guild_id = guild_id
         self.public_channel_id = public_channel_id
         self.message: discord.Message | None = None
         self._cont = FlexApprovalContainer()
@@ -172,17 +203,33 @@ class Flex(commands.Cog):
         except FlexGuildConfig.DoesNotExist:
             return None
 
-    @config_group.command(name="setup", description="Enable flex and set the moderator approval channel.")
-    @app_commands.describe(mod_channel="Channel where flex submissions are sent for review.")
+    @config_group.command(name="setup", description="Enable flex and configure channels.")
+    @app_commands.describe(
+        mod_channel="Channel where flex submissions are sent for review.",
+        public_channel="Optional: Channel where approved flexes are posted publicly.",
+    )
     @app_commands.guild_only()
-    async def config_setup(self, interaction: discord.Interaction, mod_channel: discord.TextChannel) -> None:
+    async def config_setup(
+        self,
+        interaction: discord.Interaction,
+        mod_channel: discord.TextChannel,
+        public_channel: discord.TextChannel | None = None,
+    ) -> None:
         assert interaction.guild is not None
         config, _ = await FlexGuildConfig.objects.aget_or_create(guild_id=interaction.guild.id)
         config.mod_approval_channel_id = mod_channel.id
+        if public_channel is not None:
+            config.public_flex_channel_id = public_channel.id
         config.enabled = True
         await config.asave()
+
+        pub_text = (
+            f"and public flexes will be posted in <#{config.public_flex_channel_id}>."
+            if config.public_flex_channel_id
+            else "Use `/flexconfig public_channel` to set the public showcase channel."
+        )
         await interaction.response.send_message(
-            f"\u2705 Flex system enabled! Submissions will be sent to {mod_channel.mention}.",
+            f"\u2705 Flex system enabled! Submissions will go to {mod_channel.mention} {pub_text}",
             ephemeral=True,
         )
 
@@ -191,12 +238,7 @@ class Flex(commands.Cog):
     @app_commands.guild_only()
     async def config_public_channel(self, interaction: discord.Interaction, channel: discord.TextChannel) -> None:
         assert interaction.guild is not None
-        config = await self._get_config(interaction.guild.id)
-        if config is None:
-            await interaction.response.send_message(
-                "\u26a0\ufe0f Run `/flexconfig setup` first to enable the flex system.", ephemeral=True
-            )
-            return
+        config, _ = await FlexGuildConfig.objects.aget_or_create(guild_id=interaction.guild.id)
         config.public_flex_channel_id = channel.id
         await config.asave()
         await interaction.response.send_message(
@@ -220,25 +262,22 @@ class Flex(commands.Cog):
     async def config_status(self, interaction: discord.Interaction) -> None:
         assert interaction.guild is not None
         config = await self._get_config(interaction.guild.id)
-        if config is None or not config.enabled:
+        if config is None:
             await interaction.response.send_message("Flex system is not configured for this server.", ephemeral=True)
             return
 
-        mod_ch = (
-            interaction.guild.get_channel(config.mod_approval_channel_id) if config.mod_approval_channel_id else None
-        )
-        pub_ch = interaction.guild.get_channel(config.public_flex_channel_id) if config.public_flex_channel_id else None
+        status_str = "**enabled**" if config.enabled else "**disabled**"
+        mod_ch = f"<#{config.mod_approval_channel_id}>" if config.mod_approval_channel_id else "*not set*"
+        pub_ch = f"<#{config.public_flex_channel_id}>" if config.public_flex_channel_id else "*not set*"
 
         await interaction.response.send_message(
-            f"## Flex Configuration\n"
-            f"Status: **enabled**\n"
-            f"Mod channel: {mod_ch.mention if mod_ch else 'not set'}\n"
-            f"Public channel: {pub_ch.mention if pub_ch else 'not set'}",
+            f"## Flex Configuration\nStatus: {status_str}\nMod channel: {mod_ch}\nPublic channel: {pub_ch}",
             ephemeral=True,
         )
 
     @app_commands.command(name="flex", description="Submit one of your balls for moderator approval.")
     @app_commands.autocomplete(ball=flex_autocomplete)
+    @app_commands.guild_only()
     async def flex(self, interaction: discord.Interaction, ball: str) -> None:
         await interaction.response.defer(ephemeral=True)
 
@@ -249,7 +288,15 @@ class Flex(commands.Cog):
         config = await self._get_config(interaction.guild.id)
         if config is None or not config.enabled or not config.mod_approval_channel_id:
             await interaction.followup.send(
-                "\u26a0\ufe0f Flex system is not configured for this server.", ephemeral=True
+                "\u26a0\ufe0f Flex system is not configured for this server. Ask an admin to run `/flexconfig setup`.",
+                ephemeral=True,
+            )
+            return
+
+        if not config.public_flex_channel_id:
+            await interaction.followup.send(
+                "\u26a0\ufe0f Public flex channel is not configured. Ask an admin to run `/flexconfig public_channel`.",
+                ephemeral=True,
             )
             return
 
@@ -271,19 +318,26 @@ class Flex(commands.Cog):
 
         try:
             player, _ = await Player.objects.aget_or_create(discord_id=interaction.user.id)
-            instance = await BallInstance.objects.aget(id=instance_id, player=player)
+            instance = await BallInstance.objects.aget(id=instance_id, player=player, deleted=False)
         except Exception:
             await interaction.followup.send("\u274c You don't own that ball.", ephemeral=True)
             return
 
         mod_channel = self.bot.get_channel(config.mod_approval_channel_id)
-        if not mod_channel or not isinstance(mod_channel, discord.TextChannel):
+        if not mod_channel:
+            try:
+                mod_channel = await self.bot.fetch_channel(config.mod_approval_channel_id)
+            except Exception:
+                mod_channel = None
+
+        if not mod_channel or not isinstance(mod_channel, (discord.TextChannel, discord.Thread)):
             await interaction.followup.send(
                 "\u26a0\ufe0f Mod approval channel not found. Contact an admin.", ephemeral=True
             )
             return
 
-        buffer = instance.draw_card()
+        with ThreadPoolExecutor() as pool:
+            buffer = await interaction.client.loop.run_in_executor(pool, instance.draw_card)
         file = discord.File(buffer, "card.webp")
 
         emoji = ""
@@ -296,29 +350,23 @@ class Flex(commands.Cog):
 
         embed = discord.Embed(
             title="\U0001f4e4 New Flex Submission",
-            description=(
-                f"**From:** {interaction.user.mention}\n"
-                f"**ID:** `#{instance.id:0X}`\n"  # type: ignore[attr-defined]
-                f"**Name:** {name}"
-            ),
+            description=(f"**From:** {interaction.user.mention}\n**ID:** `#{instance.pk:0X}`\n**Name:** {name}"),
             color=discord.Color.blurple(),
         )
         embed.set_image(url="attachment://card.webp")
 
         view = FlexApprovalView(
             bot=self.bot,
-            instance_id=instance.id,  # type: ignore[attr-defined]
+            instance_id=instance.pk,
             owner_id=interaction.user.id,
-            public_channel_id=config.public_flex_channel_id or 0,
+            guild_id=interaction.guild.id,
+            public_channel_id=config.public_flex_channel_id,
         )
-        await mod_channel.send(embed=embed, file=file)
-        msg = await mod_channel.send(view=view)
+        msg = await mod_channel.send(embed=embed, file=file, view=cast("discord.ui.View", view))
         view.message = msg
 
         with contextlib.suppress(Exception):
-            await interaction.user.send(
-                f"\U0001f4e8 Your flex `#{instance.id:0X}` has been submitted for review!"  # type: ignore[attr-defined]
-            )
+            await interaction.user.send(f"\U0001f4e8 Your flex `#{instance.pk:0X}` has been submitted for review!")
 
         flexdata.last_flex = now
         await flexdata.asave()

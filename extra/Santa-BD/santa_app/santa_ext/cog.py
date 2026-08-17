@@ -7,43 +7,50 @@ from typing import TYPE_CHECKING
 import discord
 from ballsdex.core.discord import LayoutView
 from ballsdex.core.utils.utils import is_staff
-from ballsdex.settings import settings
 from bd_models.models import Ball, BallInstance, BlacklistedID, Player
 from discord import app_commands
 from discord.ext import commands, tasks
-from discord.ui import ActionRow, Container, TextDisplay
+from discord.ui import ActionRow, Button, Container
+from django.utils import timezone
+from settings.models import settings
 
 if TYPE_CHECKING:
     from ballsdex.core.bot import BallsDexBot
 
 
 class SantaConfirmContainer(Container):
-    display = TextDisplay("")
-    btn_row = ActionRow()
+    def __init__(self):
+        super().__init__()
+        self.btn_row = ActionRow()
 
-    @btn_row.button(label="\u2705 Deliver Gifts!", style=discord.ButtonStyle.green)
-    async def confirm(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
-        view = self.view
-        assert view is not None
-        view.value = True
-        self.clear_items()
-        await interaction.response.edit_message(content="\U0001f381 Santa is on his way...", view=None)
+        confirm_btn = Button(label="\u2705 Deliver Gifts!", style=discord.ButtonStyle.green)
+        confirm_btn.callback = self.confirm
+        cancel_btn = Button(label="\u274c Cancel", style=discord.ButtonStyle.red)
+        cancel_btn.callback = self.cancel
 
-    @btn_row.button(label="\u274c Cancel", style=discord.ButtonStyle.red)
-    async def cancel(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+        self.btn_row.add_item(confirm_btn)
+        self.btn_row.add_item(cancel_btn)
+        self.add_item(self.btn_row)
+
+    async def confirm(self, interaction: discord.Interaction) -> None:
         view = self.view
-        assert view is not None
-        view.value = False
-        self.clear_items()
-        await interaction.response.edit_message(content="Santa delivery cancelled.", view=None)
+        if isinstance(view, SantaConfirmView):
+            view.value = True
+            await interaction.response.edit_message(content="\U0001f381 Santa is on his way...", view=None)
+
+    async def cancel(self, interaction: discord.Interaction) -> None:
+        view = self.view
+        if isinstance(view, SantaConfirmView):
+            view.value = False
+            await interaction.response.edit_message(content="Santa delivery cancelled.", view=None)
 
 
 class SantaConfirmView(LayoutView):
-    container: SantaConfirmContainer = SantaConfirmContainer()
-
     def __init__(self):
         super().__init__(timeout=30)
         self.value: bool | None = None
+        self._cont = SantaConfirmContainer()
+        self.add_item(self._cont)
 
     async def on_timeout(self) -> None:  # type: ignore[override]
         self.value = False
@@ -57,27 +64,47 @@ class SantaMail(commands.Cog):
     def cog_unload(self):  # type: ignore[override]
         self.santa_loop.cancel()
 
-    async def _get_blacklist(self):
+    async def _get_blacklist(self) -> set[int]:
         return {b.discord_id async for b in BlacklistedID.objects.all()}
+
+    async def _get_random_eligible_players(self, count: int = 5) -> list[Player]:
+        blacklist = await self._get_blacklist()
+        qs = Player.objects.exclude(discord_id__in=blacklist)
+        total = await qs.acount()
+        if total == 0:
+            return []
+
+        if total <= count:
+            return [p async for p in qs]
+
+        pks = [pk async for pk in qs.values_list("id", flat=True)]
+        chosen_pks = random.sample(pks, count)
+        return [p async for p in Player.objects.filter(id__in=chosen_pks)]
 
     @tasks.loop(hours=24)
     async def santa_loop(self):
         balls = [ball async for ball in Ball.enabled_objects.all()]
-        players = [player async for player in Player.objects.all()]
-
-        if not balls or not players:
+        if not balls:
             return
 
-        blacklist = await self._get_blacklist()
-        eligible = [p for p in players if p.discord_id not in blacklist]
-        if not eligible:
+        chosen_players = await self._get_random_eligible_players(5)
+        if not chosen_players:
             return
 
-        chosen_players = random.sample(eligible, min(5, len(eligible)))
+        now = timezone.now()
 
         for player in chosen_players:
             ball = random.choice(balls)
-            await BallInstance.objects.acreate(ball=ball, player=player)
+            atk_bonus = random.randint(-settings.max_attack_bonus, settings.max_attack_bonus)
+            hp_bonus = random.randint(-settings.max_health_bonus, settings.max_health_bonus)
+
+            await BallInstance.objects.acreate(
+                ball=ball,
+                player=player,
+                attack_bonus=atk_bonus,
+                health_bonus=hp_bonus,
+                catch_date=now,
+            )
 
             user = self.bot.get_user(player.discord_id)
             if user is None:
@@ -112,19 +139,16 @@ class SantaMail(commands.Cog):
             return
 
         balls = [ball async for ball in Ball.enabled_objects.all()]
-        players = [player async for player in Player.objects.all()]
-
-        if not balls or not players:
-            await interaction.response.send_message("No balls or players available.", ephemeral=True)
+        if not balls:
+            await interaction.response.send_message("No balls available.", ephemeral=True)
             return
 
-        blacklist = await self._get_blacklist()
-        eligible = [p for p in players if p.discord_id not in blacklist]
-        if not eligible:
+        chosen_players = await self._get_random_eligible_players(5)
+        if not chosen_players:
             await interaction.response.send_message("No eligible players found.", ephemeral=True)
             return
 
-        count_to_send = min(5, len(eligible))
+        count_to_send = len(chosen_players)
 
         content = (
             "## \U0001f384 Force Santa Delivery\n"
@@ -140,11 +164,20 @@ class SantaMail(commands.Cog):
         if view.value is None or view.value is False:
             return
 
-        chosen_players = random.sample(eligible, count_to_send)
+        now = timezone.now()
         gifts_sent = 0
         for player in chosen_players:
             ball = random.choice(balls)
-            await BallInstance.objects.acreate(ball=ball, player=player)
+            atk_bonus = random.randint(-settings.max_attack_bonus, settings.max_attack_bonus)
+            hp_bonus = random.randint(-settings.max_health_bonus, settings.max_health_bonus)
+
+            await BallInstance.objects.acreate(
+                ball=ball,
+                player=player,
+                attack_bonus=atk_bonus,
+                health_bonus=hp_bonus,
+                catch_date=now,
+            )
             gifts_sent += 1
 
         await interaction.edit_original_response(

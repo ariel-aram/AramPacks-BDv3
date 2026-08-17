@@ -77,20 +77,26 @@ class Moderation(commands.Cog):
         await member.ban(reason=reason)
         await interaction.response.send_message(f"{member.mention} was banned. Reason: {reason}")
 
-    @group.command(name="unban", description="Unban a user by tag (e.g. Name#1234).")
-    async def unban(self, interaction: discord.Interaction[BallsDexBot], user_tag: str):
-        guild, user = self._guild_member(interaction)
-        if not user.guild_permissions.ban_members:
+    @group.command(name="unban", description="Unban a user by username or ID.")
+    async def unban(self, interaction: discord.Interaction[BallsDexBot], user: str):
+        guild, invoker = self._guild_member(interaction)
+        if not invoker.guild_permissions.ban_members:
             return await interaction.response.send_message(
                 "You don't have permission to unban members.", ephemeral=True
             )
 
-        name, discrim = user_tag.split("#")
+        target_str = user.strip()
         async for ban in guild.bans():
-            if (ban.user.name, ban.user.discriminator) == (name, discrim):
-                await guild.unban(ban.user)
-                return await interaction.response.send_message(f"{ban.user.mention} has been unbanned.")
-        await interaction.response.send_message("User not found in ban list.")
+            ban_user = ban.user
+            full_tag = f"{ban_user.name}#{ban_user.discriminator}"
+            if (
+                target_str == str(ban_user.id)
+                or target_str.lower() == ban_user.name.lower()
+                or target_str.lower() == full_tag.lower()
+            ):
+                await guild.unban(ban_user)
+                return await interaction.response.send_message(f"{ban_user.mention} has been unbanned.")
+        await interaction.response.send_message("User not found in ban list.", ephemeral=True)
 
     @group.command(name="purge", description="Purge/Clear messages in the channel.")
     async def purge(self, interaction: discord.Interaction[BallsDexBot], amount: int = 5):
@@ -254,7 +260,7 @@ class Moderation(commands.Cog):
             )
 
         overwrite = channel.overwrites_for(guild.default_role)
-        overwrite.send_messages = False
+        overwrite.update(send_messages=False)
         await channel.set_permissions(guild.default_role, overwrite=overwrite)
         await interaction.response.send_message("Channel locked.")
 
@@ -273,7 +279,7 @@ class Moderation(commands.Cog):
             )
 
         overwrite = channel.overwrites_for(guild.default_role)
-        overwrite.send_messages = True
+        overwrite.update(send_messages=True)
         await channel.set_permissions(guild.default_role, overwrite=overwrite)
         await interaction.response.send_message("Channel unlocked.")
 
@@ -300,10 +306,6 @@ class Moderation(commands.Cog):
 
 
 async def enumerate_warns(queryset: Any) -> AsyncIterator[tuple[int, Warning]]:
-    counter = 1
-    async for w in queryset:
-        yield counter, w
-        counter += 1
     counter = 1
     async for w in queryset:
         yield counter, w
