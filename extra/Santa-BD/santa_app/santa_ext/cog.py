@@ -10,7 +10,7 @@ from ballsdex.core.utils.utils import is_staff
 from bd_models.models import Ball, BallInstance, BlacklistedID, Player
 from discord import app_commands
 from discord.ext import commands, tasks
-from discord.ui import ActionRow, Button, Container
+from discord.ui import ActionRow, Button, Container, TextDisplay
 from django.utils import timezone
 from settings.models import settings
 
@@ -19,8 +19,10 @@ if TYPE_CHECKING:
 
 
 class SantaConfirmContainer(Container):
-    def __init__(self):
+    def __init__(self, text: str):
         super().__init__()
+        self.display = TextDisplay(text)
+        self.add_item(self.display)
         self.btn_row = ActionRow()
 
         confirm_btn = Button(label="\u2705 Deliver Gifts!", style=discord.ButtonStyle.green)
@@ -36,20 +38,24 @@ class SantaConfirmContainer(Container):
         view = self.view
         if isinstance(view, SantaConfirmView):
             view.value = True
-            await interaction.response.edit_message(content="\U0001f381 Santa is on his way...", view=None)
+            self.display.content = "\U0001f381 Santa is on his way..."
+            self.btn_row.clear_items()
+            await interaction.response.edit_message(view=view)
 
     async def cancel(self, interaction: discord.Interaction) -> None:
         view = self.view
         if isinstance(view, SantaConfirmView):
             view.value = False
-            await interaction.response.edit_message(content="Santa delivery cancelled.", view=None)
+            self.display.content = "Santa delivery cancelled."
+            self.btn_row.clear_items()
+            await interaction.response.edit_message(view=view)
 
 
 class SantaConfirmView(LayoutView):
-    def __init__(self):
+    def __init__(self, content: str):
         super().__init__(timeout=30)
         self.value: bool | None = None
-        self._cont = SantaConfirmContainer()
+        self._cont = SantaConfirmContainer(content)
         self.add_item(self._cont)
 
     async def on_timeout(self) -> None:  # type: ignore[override]
@@ -157,8 +163,8 @@ class SantaMail(commands.Cog):
             "*\u23f0 This confirmation expires in 30 seconds.*"
         )
 
-        view = SantaConfirmView()
-        await interaction.response.send_message(content=content, view=view, ephemeral=True)  # type: ignore[arg-type]
+        view = SantaConfirmView(content)
+        await interaction.response.send_message(view=view, ephemeral=True)
         await view.wait()
 
         if view.value is None or view.value is False:

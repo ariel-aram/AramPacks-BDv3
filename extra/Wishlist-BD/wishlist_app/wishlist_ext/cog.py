@@ -112,36 +112,51 @@ class WishlistManageContainer(Container):
             await interaction.response.send_message("Your wishlist is already empty.", ephemeral=True)
             return
 
-        confirm_view = PurgeConfirmView(parent)
+        confirm_view = PurgeConfirmView(parent, f"Delete all **{count}** items from your wishlist?")
         await interaction.response.send_message(
-            f"Delete all **{count}** items from your wishlist?",
-            view=confirm_view,  # type: ignore[arg-type]
+            view=confirm_view,
             ephemeral=True,
         )
 
 
 class PurgeConfirmView(LayoutView):
-    def __init__(self, parent: WishlistManageView):
+    def __init__(self, parent: WishlistManageView, text: str):
         super().__init__(timeout=15)
         self.parent = parent
-        self._cont = PurgeConfirmContainer()
+        self._cont = PurgeConfirmContainer(text)
         self.add_item(self._cont)
 
 
 class PurgeConfirmContainer(Container):
-    btn_row = ActionRow()
+    def __init__(self, text: str):
+        super().__init__()
+        self.display = TextDisplay(text)
+        self.add_item(self.display)
+        self.btn_row = ActionRow()
 
-    @btn_row.button(label="\u2705 Yes, Purge All", style=discord.ButtonStyle.danger)
-    async def confirm(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+        confirm_btn = Button(label="\u2705 Yes, Purge All", style=discord.ButtonStyle.danger)
+        confirm_btn.callback = self.confirm
+        cancel_btn = Button(label="\u274c Cancel", style=discord.ButtonStyle.secondary)
+        cancel_btn.callback = self.cancel
+
+        self.btn_row.add_item(confirm_btn)
+        self.btn_row.add_item(cancel_btn)
+        self.add_item(self.btn_row)
+
+    async def confirm(self, interaction: discord.Interaction) -> None:
         parent = self.view
         assert parent is not None and isinstance(parent, PurgeConfirmView)
         items = WishlistItem.objects.filter(user_id=parent.parent.user_id)
         await items.adelete()
-        await interaction.response.edit_message(content="\u2705 Wishlist cleared.", view=None)
+        self.display.content = "\u2705 Wishlist cleared."
+        self.btn_row.clear_items()
+        await interaction.response.edit_message(view=parent)
 
-    @btn_row.button(label="\u274c Cancel", style=discord.ButtonStyle.secondary)
-    async def cancel(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
-        await interaction.response.edit_message(content="Purge cancelled.", view=None)
+    async def cancel(self, interaction: discord.Interaction) -> None:
+        parent = self.view
+        self.display.content = "Purge cancelled."
+        self.btn_row.clear_items()
+        await interaction.response.edit_message(view=parent)
 
 
 @app_commands.guild_only()
@@ -214,9 +229,11 @@ class Wishlist(commands.GroupCog, group_name="wishlist"):
             await interaction.response.send_message("Your wishlist is already empty.", ephemeral=True)
             return
 
-        confirm_view = PurgeConfirmView(WishlistManageView(user_id=interaction.user.id))
-        await interaction.response.send_message(
+        confirm_view = PurgeConfirmView(
+            WishlistManageView(user_id=interaction.user.id),
             f"Delete all **{count}** items from your wishlist? This cannot be undone.",
-            view=confirm_view,  # type: ignore[arg-type]
+        )
+        await interaction.response.send_message(
+            view=confirm_view,
             ephemeral=True,
         )
