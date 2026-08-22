@@ -325,6 +325,7 @@ class Flex(commands.Cog):
                 await BallInstance.objects.select_related("ball", "special")
                 .aget(id=instance_id, player=player, deleted=False)
             )
+            ball_obj = instance.ball
         except Exception:
             await interaction.followup.send("\u274c You don't own that ball.", ephemeral=True)
             return
@@ -347,12 +348,12 @@ class Flex(commands.Cog):
         file = discord.File(buffer, "card.webp")
 
         emoji = ""
-        if instance.ball:
-            emoji_obj = interaction.client.get_emoji(instance.ball.emoji_id)
+        if ball_obj:
+            emoji_obj = interaction.client.get_emoji(ball_obj.emoji_id)
             if emoji_obj:
                 emoji = f"{emoji_obj} "
 
-        name = f"{emoji}{instance.ball.country}" if instance.ball else "Unknown"
+        name = f"{emoji}{ball_obj.country}" if ball_obj else "Unknown"
 
         embed = discord.Embed(
             title="\U0001f4e4 New Flex Submission",
