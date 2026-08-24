@@ -1,0 +1,78 @@
+=============================================
+  RUFF CHECK (linting)
+=============================================
+E902 No such file or directory (os error 2)
+--> scripts:1:1
+
+Found 1 error.
+
+=============================================
+  RUFF FORMAT (formatting)
+=============================================
+unformatted: File would be reformatted
+   --> extra/Flex-BD/flex_app/flex_ext/cog.py:1:1
+    |
+75  |             owner_player, _ = await Player.objects.aget_or_create(discord_id=owner_id)
+    -             instance = (
+    -                 await BallInstance.objects.select_related("ball", "special")
+    -                 .aget(id=instance_id, player=owner_player, deleted=False)
+76  +             instance = await BallInstance.objects.select_related("ball", "special").aget(
+77  +                 id=instance_id, player=owner_player, deleted=False
+78  |             )
+--------------------------------------------------------------------------------
+322 |             player, _ = await Player.objects.aget_or_create(discord_id=interaction.user.id)
+    -             instance = (
+    -                 await BallInstance.objects.select_related("ball", "special")
+    -                 .aget(id=instance_id, player=player, deleted=False)
+323 +             instance = await BallInstance.objects.select_related("ball", "special").aget(
+324 +                 id=instance_id, player=player, deleted=False
+325 |             )
+    |
+
+io: /home/runner/work/AramPacks-BDv3/AramPacks-BDv3/scripts: No such file or directory (os error 2)
+--> scripts:1:1
+
+1 file would be reformatted, 89 files already formatted
+
+=============================================
+  PYRIGHT (type checking)
+=============================================
+npm warn exec The following package was not found and will be installed: pyright@1.1.413
+File or directory "file:///home/runner/work/AramPacks-BDv3/AramPacks-BDv3/scripts" does not exist
+
+=============================================
+  BANDIT (security scan)
+=============================================
+Run started:2026-08-24 06:31:06.949976+00:00
+
+Test results:
+	No issues identified.
+
+Code scanned:
+	Total lines of code: 2934
+	Total lines skipped (#nosec): 0
+	Total potential issues skipped due to specifically being disabled (e.g., #nosec BXXX): 0
+
+Run metrics:
+	Total issues (by severity):
+		Undefined: 0
+		Low: 29
+		Medium: 0
+		High: 0
+	Total issues (by confidence):
+		Undefined: 0
+		Low: 0
+		Medium: 0
+		High: 29
+Files skipped (0):
+
+=============================================
+  PIP-AUDIT (dependency vulnerabilities)
+=============================================
+django==6.0.7:
+  - PYSEC-2026-3717: An issue was discovered in Django 5.2 before 5.2.17 and 6.0 before 6.0.8. GeoDjango's `django.contrib.gis.geos.GEOSGeome
+sqlparse==0.5.5:
+  - PYSEC-2026-3698: ### Summary  sqlparse contains a Regular Expression Denial of Service (ReDoS) vulnerability in its dollar-quoted SQL lit
+  - PYSEC-2026-3697: ### Summary A comment-only statement (`-- c\n`*n) may cause a Denial of Service (DoS).  ### Details Location: [sqlparse/
+  - PYSEC-2026-3699: ### Summary  `sqlparse` ships hard limits (`MAX_GROUPING_DEPTH=100`, `MAX_GROUPING_TOKENS=10000`) intended to bound pars
+  - PYSEC-2026-3696: ### Summary  The documented Python and PHP output modes generate source-code snippets from caller-supplied SQL. Their ou

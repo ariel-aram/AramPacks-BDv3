@@ -1,4 +1,4 @@
-[project]
+sqlparse>=0.5.6
 name = "arampacks-bdv3"
 version = "1.0.0"
 description = "Ariel Aram's formidable list of extras a.k.a packages for Ballsdex v3."

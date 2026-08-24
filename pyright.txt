@@ -1,0 +1,2 @@
+npm warn exec The following package was not found and will be installed: pyright@1.1.413
+File or directory "file:///home/runner/work/AramPacks-BDv3/AramPacks-BDv3/scripts" does not exist

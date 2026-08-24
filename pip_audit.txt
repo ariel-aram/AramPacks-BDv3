@@ -1,0 +1,7 @@
+django==6.0.7:
+  - PYSEC-2026-3717: An issue was discovered in Django 5.2 before 5.2.17 and 6.0 before 6.0.8. GeoDjango's `django.contrib.gis.geos.GEOSGeome
+sqlparse==0.5.5:
+  - PYSEC-2026-3698: ### Summary  sqlparse contains a Regular Expression Denial of Service (ReDoS) vulnerability in its dollar-quoted SQL lit
+  - PYSEC-2026-3697: ### Summary A comment-only statement (`-- c\n`*n) may cause a Denial of Service (DoS).  ### Details Location: [sqlparse/
+  - PYSEC-2026-3699: ### Summary  `sqlparse` ships hard limits (`MAX_GROUPING_DEPTH=100`, `MAX_GROUPING_TOKENS=10000`) intended to bound pars
+  - PYSEC-2026-3696: ### Summary  The documented Python and PHP output modes generate source-code snippets from caller-supplied SQL. Their ou

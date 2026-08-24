@@ -1,0 +1,242 @@
+You are a senior security and code quality engineer reviewing a Discord bot monorepo.
+Repository: https://github.com/ariel-aram/AramPacks-BDv3
+
+## Project context
+- extra/ contains subpackages for a Discord bot (ballsDex v3)
+- Python 3.14, discord.py 2.7, django 6.x, ballsdex v3
+- Uses ballsdex.core.discord.LayoutView (Components v2)
+- Cards are drawn with Pillow; file access via Django FileField
+- Each cog has app_commands (slash commands) + optional LayoutView UI
+
+## Scan results
+=============================================
+  RUFF CHECK (linting)
+=============================================
+E902 No such file or directory (os error 2)
+--> scripts:1:1
+
+Found 1 error.
+
+=============================================
+  RUFF FORMAT (formatting)
+=============================================
+unformatted: File would be reformatted
+   --> extra/Flex-BD/flex_app/flex_ext/cog.py:1:1
+    |
+75  |             owner_player, _ = await Player.objects.aget_or_create(discord_id=owner_id)
+    -             instance = (
+    -                 await BallInstance.objects.select_related("ball", "special")
+    -                 .aget(id=instance_id, player=owner_player, deleted=False)
+76  +             instance = await BallInstance.objects.select_related("ball", "special").aget(
+77  +                 id=instance_id, player=owner_player, deleted=False
+78  |             )
+--------------------------------------------------------------------------------
+322 |             player, _ = await Player.objects.aget_or_create(discord_id=interaction.user.id)
+    -             instance = (
+    -                 await BallInstance.objects.select_related("ball", "special")
+    -                 .aget(id=instance_id, player=player, deleted=False)
+323 +             instance = await BallInstance.objects.select_related("ball", "special").aget(
+324 +                 id=instance_id, player=player, deleted=False
+325 |             )
+    |
+
+io: /home/runner/work/AramPacks-BDv3/AramPacks-BDv3/scripts: No such file or directory (os error 2)
+--> scripts:1:1
+
+1 file would be reformatted, 89 files already formatted
+
+=============================================
+  PYRIGHT (type checking)
+=============================================
+npm warn exec The following package was not found and will be installed: pyright@1.1.413
+File or directory "file:///home/runner/work/AramPacks-BDv3/AramPacks-BDv3/scripts" does not exist
+
+=============================================
+  BANDIT (security scan)
+=============================================
+Run started:2026-08-24 06:31:06.949976+00:00
+
+Test results:
+	No issues identified.
+
+Code scanned:
+	Total lines of code: 2934
+	Total lines skipped (#nosec): 0
+	Total potential issues skipped due to specifically being disabled (e.g., #nosec BXXX): 0
+
+Run metrics:
+	Total issues (by severity):
+		Undefined: 0
+		Low: 29
+		Medium: 0
+		High: 0
+	Total issues (by confidence):
+		Undefined: 0
+		Low: 0
+		Medium: 0
+		High: 29
+Files skipped (0):
+
+=============================================
+  PIP-AUDIT (dependency vulnerabilities)
+=============================================
+django==6.0.7:
+  - PYSEC-2026-3717: An issue was discovered in Django 5.2 before 5.2.17 and 6.0 before 6.0.8. GeoDjango's `django.contrib.gis.geos.GEOSGeome
+sqlparse==0.5.5:
+  - PYSEC-2026-3698: ### Summary  sqlparse contains a Regular Expression Denial of Service (ReDoS) vulnerability in its dollar-quoted SQL lit
+  - PYSEC-2026-3697: ### Summary A comment-only statement (`-- c\n`*n) may cause a Denial of Service (DoS).  ### Details Location: [sqlparse/
+  - PYSEC-2026-3699: ### Summary  `sqlparse` ships hard limits (`MAX_GROUPING_DEPTH=100`, `MAX_GROUPING_TOKENS=10000`) intended to bound pars
+  - PYSEC-2026-3696: ### Summary  The documented Python and PHP output modes generate source-code snippets from caller-supplied SQL. Their ou
+## Recent changes
+=== RECENT CHANGES (last 7 days) ===
+83cd83d feat: implement cog for server-side flex submission moderation and configuration system (Fix Flex package)
+.github/workflows/ai-health-check.yml
+.gitignore
+LICENSE
+README.md
+config/extra.toml
+extra/Advent-BD/advent_app/__init__.py
+extra/Advent-BD/advent_app/admin.py
+extra/Advent-BD/advent_app/advent_ext/__init__.py
+extra/Advent-BD/advent_app/advent_ext/cog.py
+extra/Advent-BD/advent_app/apps.py
+extra/Advent-BD/advent_app/migrations/0001_initial.py
+extra/Advent-BD/advent_app/migrations/__init__.py
+extra/Advent-BD/advent_app/models.py
+extra/Advent-BD/pyproject.toml
+extra/CFCommands-BD/cfcommands_app/__init__.py
+extra/CFCommands-BD/cfcommands_app/apps.py
+extra/CFCommands-BD/cfcommands_app/cfcommands_ext/__init__.py
+extra/CFCommands-BD/cfcommands_app/cfcommands_ext/cog.py
+extra/CFCommands-BD/cfcommands_app/migrations/__init__.py
+extra/CFCommands-BD/pyproject.toml
+extra/CardStudio-BD/cardstudio_app/__init__.py
+extra/CardStudio-BD/cardstudio_app/admin.py
+extra/CardStudio-BD/cardstudio_app/apps.py
+extra/CardStudio-BD/cardstudio_app/cardstudio_ext/__init__.py
+extra/CardStudio-BD/cardstudio_app/cardstudio_ext/cog.py
+extra/CardStudio-BD/cardstudio_app/image_gen.py
+extra/CardStudio-BD/cardstudio_app/migrations/0001_initial.py
+extra/CardStudio-BD/cardstudio_app/migrations/__init__.py
+extra/CardStudio-BD/cardstudio_app/models.py
+extra/CardStudio-BD/pyproject.toml
+extra/Events-BD/events_app/__init__.py
+extra/Events-BD/events_app/apps.py
+extra/Events-BD/events_app/events_ext/__init__.py
+extra/Events-BD/events_app/events_ext/cog.py
+extra/Events-BD/events_app/migrations/__init__.py
+extra/Events-BD/pyproject.toml
+extra/Exchange-BD/exchange_app/__init__.py
+extra/Exchange-BD/exchange_app/apps.py
+extra/Exchange-BD/exchange_app/exchange_ext/__init__.py
+extra/Exchange-BD/exchange_app/exchange_ext/cog.py
+extra/Exchange-BD/exchange_app/migrations/__init__.py
+extra/Exchange-BD/pyproject.toml
+extra/Flex-BD/flex_app/__init__.py
+extra/Flex-BD/flex_app/apps.py
+extra/Flex-BD/flex_app/flex_ext/__init__.py
+extra/Flex-BD/flex_app/flex_ext/cog.py
+extra/Flex-BD/flex_app/migrations/0001_initial.py
+extra/Flex-BD/flex_app/migrations/0002_flexguildconfig.py
+extra/Flex-BD/flex_app/migrations/__init__.py
+extra/Flex-BD/flex_app/models.py
+extra/Flex-BD/pyproject.toml
+extra/Funhouse-BD/funhouse_app/__init__.py
+extra/Funhouse-BD/funhouse_app/apps.py
+extra/Funhouse-BD/funhouse_app/funhouse_ext/__init__.py
+extra/Funhouse-BD/funhouse_app/funhouse_ext/cog.py
+extra/Funhouse-BD/funhouse_app/migrations/__init__.py
+extra/Funhouse-BD/pyproject.toml
+extra/Moderation-BD/moderation_app/__init__.py
+extra/Moderation-BD/moderation_app/admin.py
+extra/Moderation-BD/moderation_app/apps.py
+extra/Moderation-BD/moderation_app/migrations/0001_initial.py
+extra/Moderation-BD/moderation_app/migrations/0002_moderationconfig.py
+extra/Moderation-BD/moderation_app/migrations/__init__.py
+extra/Moderation-BD/moderation_app/models.py
+extra/Moderation-BD/moderation_app/moderation_ext/__init__.py
+extra/Moderation-BD/moderation_app/moderation_ext/cog.py
+extra/Moderation-BD/pyproject.toml
+extra/Museum-BD/museum_app/__init__.py
+extra/Museum-BD/museum_app/apps.py
+extra/Museum-BD/museum_app/migrations/0001_initial.py
+extra/Museum-BD/museum_app/migrations/__init__.py
+extra/Museum-BD/museum_app/models.py
+extra/Museum-BD/museum_app/museum_ext/__init__.py
+extra/Museum-BD/museum_app/museum_ext/cog.py
+extra/Museum-BD/pyproject.toml
+extra/Preview-BD/preview_app/__init__.py
+extra/Preview-BD/preview_app/apps.py
+extra/Preview-BD/preview_app/migrations/__init__.py
+extra/Preview-BD/preview_app/preview_ext/__init__.py
+extra/Preview-BD/preview_app/preview_ext/cog.py
+extra/Preview-BD/pyproject.toml
+extra/ReindeerRush-BD/pyproject.toml
+extra/ReindeerRush-BD/reindeerrush_app/__init__.py
+extra/ReindeerRush-BD/reindeerrush_app/apps.py
+extra/ReindeerRush-BD/reindeerrush_app/migrations/__init__.py
+extra/ReindeerRush-BD/reindeerrush_app/reindeerrush_ext/__init__.py
+extra/ReindeerRush-BD/reindeerrush_app/reindeerrush_ext/cog.py
+extra/Santa-BD/pyproject.toml
+extra/Santa-BD/santa_app/__init__.py
+extra/Santa-BD/santa_app/apps.py
+extra/Santa-BD/santa_app/migrations/__init__.py
+extra/Santa-BD/santa_app/santa_ext/__init__.py
+extra/Santa-BD/santa_app/santa_ext/cog.py
+extra/SpecialSpawn-BD/pyproject.toml
+extra/SpecialSpawn-BD/specialspawn_app/__init__.py
+extra/SpecialSpawn-BD/specialspawn_app/apps.py
+extra/SpecialSpawn-BD/specialspawn_app/migrations/0001_initial.py
+extra/SpecialSpawn-BD/specialspawn_app/migrations/__init__.py
+extra/SpecialSpawn-BD/specialspawn_app/models.py
+extra/SpecialSpawn-BD/specialspawn_app/specialspawn_ext/__init__.py
+extra/SpecialSpawn-BD/specialspawn_app/specialspawn_ext/cog.py
+extra/Wishlist-BD/pyproject.toml
+extra/Wishlist-BD/wishlist_app/__init__.py
+extra/Wishlist-BD/wishlist_app/apps.py
+extra/Wishlist-BD/wishlist_app/migrations/0001_initial.py
+extra/Wishlist-BD/wishlist_app/migrations/__init__.py
+extra/Wishlist-BD/wishlist_app/models.py
+extra/Wishlist-BD/wishlist_app/wishlist_ext/__init__.py
+extra/Wishlist-BD/wishlist_app/wishlist_ext/cog.py
+pyproject.toml
+uv.lock
+
+---
+
+## Your task
+
+Analyze ALL scan results above and identify issues that should be fixed.
+
+### Issues to flag and fix (in priority order):
+1. **Security vulnerabilities** (bandit high/medium severity, pip-audit CVEs)
+2. **Runtime bugs** (unhandled exceptions, missing null checks, path traversal, unsafe file access)
+3. **Type safety issues** (pyright errors that indicate real bugs, not just style)
+4. **Lint errors** that suggest broken logic (ruff E/F, not just formatting)
+5. **Dependency issues** (outdated packages with known CVEs)
+6. **Code smells** that commonly cause production issues (bare except, mutable defaults, race conditions)
+
+### What NOT to flag:
+- Formatting/style issues (ruff format warnings, import order)
+- Warnings that are suppressed intentionally (noqa comments)
+- Issues in migrations/ files (they are Django versioned)
+- The `ballgpt` external package (not in this repo)
+
+### Response format
+If there are no actionable issues, respond with exactly: NO_ISSUES
+
+If there ARE issues, respond with a JSON array:
+```json
+[{"file": "extra/Package/subpackage/cog.py", "line": 42, "severity": "high", "category": "security", "fix": "Brief description of what changed", "code": "fixed line of code"}]
+```
+
+Severity: "high" (security/crash), "medium" (bug/correctness), "low" (code quality)
+Category: "security", "bug", "type-safety", "dependency", "code-quality"
+
+Rules:
+- Be conservative: only fix things you are CERTAIN are wrong
+- Preserve existing behavior — do not add features or refactor
+- Do NOT add new dependencies or change imports
+- Do NOT modify migrations/ or test files
+- Keep fixes minimal: change the exact line, not surrounding code
+- For type errors: only fix if the annotation is wrong, not if the tool is being overly strict

@@ -1,0 +1,24 @@
+unformatted: File would be reformatted
+   --> extra/Flex-BD/flex_app/flex_ext/cog.py:1:1
+    |
+75  |             owner_player, _ = await Player.objects.aget_or_create(discord_id=owner_id)
+    -             instance = (
+    -                 await BallInstance.objects.select_related("ball", "special")
+    -                 .aget(id=instance_id, player=owner_player, deleted=False)
+76  +             instance = await BallInstance.objects.select_related("ball", "special").aget(
+77  +                 id=instance_id, player=owner_player, deleted=False
+78  |             )
+--------------------------------------------------------------------------------
+322 |             player, _ = await Player.objects.aget_or_create(discord_id=interaction.user.id)
+    -             instance = (
+    -                 await BallInstance.objects.select_related("ball", "special")
+    -                 .aget(id=instance_id, player=player, deleted=False)
+323 +             instance = await BallInstance.objects.select_related("ball", "special").aget(
+324 +                 id=instance_id, player=player, deleted=False
+325 |             )
+    |
+
+io: /home/runner/work/AramPacks-BDv3/AramPacks-BDv3/scripts: No such file or directory (os error 2)
+--> scripts:1:1
+
+1 file would be reformatted, 89 files already formatted
