@@ -21,4 +21,4 @@ docker compose up -d --build
 
 ## Credits
 
-The original creators behind almost all the extras in this repository are **Haymooed**, **Caylies**, and **molteencreates**. Therefore, all credits go to them. Only two or some of the packages in here are owned by me, **ariel-aram**.
+The original creators behind almost all the extras in this repository are **Haymooed**, **Caylies**, and **molteencreates**. Therefore, all credits go to them. Only one of the packages in here are owned by me, **ariel-aram**.

@@ -82,9 +82,3 @@ enabled = true
 location = "git+https://github.com/ariel-aram/AramPacks-BDv3.git@master#subdirectory=extra/Wishlist-BD"
 path = "wishlist_app"
 enabled = true
-
-# Card Studio Extra Package
-[[ballsdex.packages]]
-location = "git+https://github.com/ariel-aram/AramPacks-BDv3.git@master#subdirectory=extra/CardStudio-BD"
-path = "cardstudio_app"
-enabled = true
