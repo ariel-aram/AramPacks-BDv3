@@ -73,9 +73,8 @@ class FlexDecisionModal(BallsDexModal):
 
         try:
             owner_player, _ = await Player.objects.aget_or_create(discord_id=owner_id)
-            instance = (
-                await BallInstance.objects.select_related("ball", "special")
-                .aget(id=instance_id, player=owner_player, deleted=False)
+            instance = await BallInstance.objects.select_related("ball", "special").aget(
+                id=instance_id, player=owner_player, deleted=False
             )
         except Exception:
             self.view_ref.disable_all()
@@ -321,9 +320,8 @@ class Flex(commands.Cog):
 
         try:
             player, _ = await Player.objects.aget_or_create(discord_id=interaction.user.id)
-            instance = (
-                await BallInstance.objects.select_related("ball", "special")
-                .aget(id=instance_id, player=player, deleted=False)
+            instance = await BallInstance.objects.select_related("ball", "special").aget(
+                id=instance_id, player=player, deleted=False
             )
             ball_obj = instance.ball
         except Exception:
