@@ -42,7 +42,6 @@ plugins.md041.enabled = false
 [tool.pyrefly]
 source_directories = [
     "extra/Advent-BD",
-    "extra/CFCommands-BD",
     "extra/Events-BD",
     "extra/Exchange-BD",
     "extra/Flex-BD",
@@ -65,7 +64,6 @@ exclude = [
 search_path = [
     ".venv/Lib/site-packages",
     "extra/Advent-BD",
-    "extra/CFCommands-BD",
     "extra/Events-BD",
     "extra/Exchange-BD",
     "extra/Flex-BD",
@@ -85,7 +83,6 @@ include = ["extra"]
 extraPaths = [
     ".venv/Lib/site-packages",
     "extra/Advent-BD",
-    "extra/CFCommands-BD",
     "extra/Events-BD",
     "extra/Exchange-BD",
     "extra/Flex-BD",
@@ -157,7 +154,6 @@ sort_first = [
 [tool.ty]
 source_directories = [
     "extra/Advent-BD",
-    "extra/CFCommands-BD",
     "extra/Events-BD",
     "extra/Exchange-BD",
     "extra/Flex-BD",
@@ -179,7 +175,6 @@ exclude = [
 search_path = [
     ".venv/Lib/site-packages",
     "extra/Advent-BD",
-    "extra/CFCommands-BD",
     "extra/Events-BD",
     "extra/Exchange-BD",
     "extra/Flex-BD",
