@@ -23,12 +23,6 @@ location = "git+https://github.com/ariel-aram/AramPacks-BDv3.git@master#subdirec
 path = "advent_app"
 enabled = true
 
-# CFCommands Extra Package
-[[ballsdex.packages]]
-location = "git+https://github.com/ariel-aram/AramPacks-BDv3.git@master#subdirectory=extra/CFCommands-BD"
-path = "cfcommands_app"
-enabled = true
-
 # Events Extra Package
 [[ballsdex.packages]]
 location = "git+https://github.com/ariel-aram/AramPacks-BDv3.git@master#subdirectory=extra/Events-BD"
