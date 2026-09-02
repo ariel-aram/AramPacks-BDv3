@@ -20,7 +20,6 @@ if TYPE_CHECKING:
 log = logging.getLogger("ballsdex.packages.exchange")
 
 
-@app_commands.guild_only()
 class Exchange(commands.Cog):
     """Exchange one of your owned balls for a random new one."""
 
@@ -29,6 +28,7 @@ class Exchange(commands.Cog):
         self.cooldowns: dict[int, float] = {}
 
     @app_commands.command(name="exchange", description="Exchange one of your balls for a random new one.")
+    @app_commands.guild_only()
     @app_commands.describe(countryball="Select a ball from your collection to exchange.")
     async def exchange(
         self,

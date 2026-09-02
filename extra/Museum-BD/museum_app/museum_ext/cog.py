@@ -1,10 +1,11 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, override
 
 import discord
 from ballsdex.core.discord import LayoutView
 from ballsdex.core.discord import Modal as BallsDexModal
+from bd_models.models import BallInstance
 from discord import app_commands
 from discord.ext import commands
 from discord.ui import ActionRow, Container, TextDisplay, TextInput
@@ -107,8 +108,20 @@ class MuseumEditModal(BallsDexModal):
             )
             return
         for c in cards:
-            if not c.isalnum():
+            try:
+                pk = int(c, 16)
+            except ValueError:
                 await interaction.followup.send(f"\u26a0\ufe0f Invalid card ID format: `{c}`", ephemeral=True)
+                return
+
+            try:
+                instance = await BallInstance.objects.select_related("player").aget(pk=pk)
+            except BallInstance.DoesNotExist:
+                await interaction.followup.send(f"\u26a0\ufe0f Card `{c}` doesn't exist.", ephemeral=True)
+                return
+
+            if instance.player.discord_id != interaction.user.id:
+                await interaction.followup.send(f"\u26a0\ufe0f Card `{c}` doesn't belong to you.", ephemeral=True)
                 return
 
         await set_museum_cards(interaction.user.id, cards)
@@ -174,9 +187,16 @@ class Museum(commands.Cog):
             modal = MuseumEditModal(current_cards=current_cards)
             await interaction.response.send_modal(modal)
 
-        except app_commands.CommandOnCooldown as e:
-            await interaction.response.send_message(
-                f"\u23f3 You're editing too fast! Try again in `{e.retry_after:.1f}` seconds.", ephemeral=True
-            )
         except Exception as e:
             await self.send_error(interaction, f"Unexpected error: `{type(e).__name__}` \u2014 {e}")
+
+    @override
+    async def cog_app_command_error(
+        self, interaction: discord.Interaction, error: app_commands.AppCommandError
+    ) -> None:
+        if isinstance(error, app_commands.CommandOnCooldown):
+            await interaction.response.send_message(
+                f"\u23f3 You're editing too fast! Try again in `{error.retry_after:.1f}` seconds.", ephemeral=True
+            )
+            return
+        await self.send_error(interaction, f"Unexpected error: `{type(error).__name__}` \u2014 {error}")

@@ -150,7 +150,6 @@ class EventSelectContainer(Container):
         await interaction.response.edit_message(view=parent)
 
 
-@app_commands.guild_only()
 class Events(commands.Cog):
     """View information about special events with interactive browsing."""
 
@@ -158,6 +157,7 @@ class Events(commands.Cog):
         self.bot = bot
 
     @app_commands.command()
+    @app_commands.guild_only()
     async def events(self, interaction: discord.Interaction[BallsDexBot]):
         """Browse all special events with an interactive card viewer."""
         await interaction.response.defer(ephemeral=True)

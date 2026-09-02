@@ -33,7 +33,7 @@ CachedMessage = namedtuple("CachedMessage", ["content", "author_id"])
 @dataclass
 class SpecialSpawnCooldown:
     time: datetime
-    scaled_message_count: float = field(default_factory=lambda: settings.spawn_chance_min // 2)
+    scaled_message_count: float = 1.0
     threshold: int = field(
         default_factory=lambda: random.randint(
             max(1, settings.spawn_chance_min // 2),

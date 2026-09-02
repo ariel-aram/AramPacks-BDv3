@@ -82,7 +82,7 @@ class PreviewVariantsView(LayoutView):
         )
         embed.set_image(url="attachment://preview_card.webp")
         embed.add_field(name="Ownership", value=ownership_text, inline=True)
-        embed.add_field(name="Rarity", value=f"{selected_ball.rarity}%", inline=True)
+        embed.add_field(name="Rarity", value=f"{selected_ball.rarity * 100:.1f}%", inline=True)
 
         return embed, file
 
